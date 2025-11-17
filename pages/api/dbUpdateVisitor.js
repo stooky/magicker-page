@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
         try {
             const query = `
-                UPDATE WebsiteVisitors SET myListingUrl = $1 WHERE sessionID = $2 RETURNING *;
+                UPDATE websitevisitors SET mylistingurl = $1 WHERE sessionid = $2 RETURNING *;
             `;
             const values = [myListingUrl, sessionID];
             const result = await pool.query(query, values);
@@ -18,8 +18,13 @@ export default async function handler(req, res) {
                 res.status(404).json({ message: 'No data found to update' });
             }
         } catch (err) {
-            console.error('Error updating data:', err.message);
-            res.status(500).json({ error: err.message });
+            console.log('Database unavailable - visitor not updated:', err.message);
+            // Return success even if database is unavailable (non-critical for UX)
+            res.status(200).json({
+                success: false,
+                message: 'Database unavailable - visitor data not updated',
+                note: 'Flow continues without database'
+            });
         }
     } else {
         res.status(405).json({ message: 'Method not allowed' });

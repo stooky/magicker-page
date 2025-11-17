@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { callZapierWebhook } from '../components/utils/zapier';
+// Removed Zapier webhook import - now using direct scraping API
 import { SCREEN_STATES } from '../configuration/screenStates';
 import FormComponent from '../components/FormComponent';
 import LoadingComponent from '../components/LoadingComponent';
@@ -25,6 +25,7 @@ const MainContainer = () => {
     const [isScanning, setIsScanning] = useState(false);  // New state for scanning
     const [messageItems, setMessageItems] = useState(null);
     const [aiListingUrl, setaiListingUrl] = useState('EMPTY');
+    const [botConfig, setBotConfig] = useState(null);
     const [screenState, setScreenState] = useState(SCREEN_STATES.FORM);
     const [sessionID, setSessionID] = useState('');
     const apiKey = process.env.NEXT_PUBLIC_PDL_API_KEY;
@@ -73,7 +74,8 @@ async function getCompanyName(website) {
         return companyName;
 
     } catch (error) {
-        console.error('Error fetching company name:', error.message);
+        // Silently fail - PDL API key not configured or invalid
+        // console.error('Error fetching company name:', error.message);
         return 'Unknown Company';
     }
 }
@@ -98,10 +100,21 @@ useEffect(() => {
 }, []);
 
 
-    // Function to strip our stuff from the Zapier message
+    // Function to process scraped response message (numbered list)
     const processZapierResponse = (response) => {
-        const strippedText = response.replace(/<[^>]*>?/gm, ''); // Remove HTML tags
-        const items = strippedText.match(/\d+\.\s*(.*?)(?=\d+\.\s*|\s*$)/g).map(item => item.replace(/^\d+\.\s*/, ''));
+        if (!response) return [];
+
+        // Remove HTML tags
+        const strippedText = response.replace(/<[^>]*>?/gm, '');
+
+        // Split by newlines and filter for numbered items
+        const items = strippedText
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => /^\d+\./.test(line)) // Lines starting with number and period
+            .map(line => line.replace(/^\d+\.\s*/, '')); // Remove the number prefix
+
+        console.log('Processed snippets:', items.length, items);
         return items;
     };
 
@@ -134,12 +147,12 @@ useEffect(() => {
             setScreenState(SCREEN_STATES.LOADING);
         } else if (isScanning) {
             setScreenState(SCREEN_STATES.SCANNING);
-        } else if (aiListingUrl !== 'EMPTY') {
+        } else if (botConfig !== null) {
             setScreenState(SCREEN_STATES.CHAT_TEASE);
         } else {
             setScreenState(SCREEN_STATES.FORM);
         }
-    }, [isLoading, isScanning, aiListingUrl]);
+    }, [isLoading, isScanning, botConfig]);
     
     // Loop through our messages.
     useEffect(() => {
@@ -152,41 +165,18 @@ useEffect(() => {
         }
     }, [messages]);
 
-    
-    useEffect(() => {
-        let pollingInterval;
-        if (loading) {
-            setCallbackReceived(false);
-            pollingInterval = setInterval(async () => {
-                try {
-                    const response = await fetch('/api/get-latest-response');
-                    const data = await response.json();
-                    if (data.response && data.response.status) {
-                        setZapierResponse(data.response);
-                        const processedItems = processZapierResponse(data.response.message); // Process the response
-                        setMessageItems(processedItems); // Update state called 'messageItems'
-                        setLoading(false);
-                        setCallbackReceived(true);
-                        clearInterval(pollingInterval);
-                    }
-                } catch (error) {
-                    console.error('Error polling latest response:', error);
-                }
-            }, 2000);
-        }
-    
-        return () => clearInterval(pollingInterval);
-    }, [loading]);
-    
+    // OLD ZAPIER POLLING - REMOVED
+    // Now using direct response from /api/scrape-website (no polling needed)
+
     
 
-    // Looking for our screenshot URL
+    // Looking for our screenshot URL or message items (from scraping)
     useEffect(() => {
-        if (screenshotUrl) {
+        if (screenshotUrl || messageItems) {
             setIsLoading(false);    // Stop loading screen
             setIsScanning(true);    // Start scanning screen
         }
-    }, [screenshotUrl]);
+    }, [screenshotUrl, messageItems]);
 
 
 
@@ -225,23 +215,52 @@ useEffect(() => {
 
         await fetch('/api/clear-response', { method: 'POST' });
 
+        // CHECK IF DOMAIN ALREADY EXISTS
+        try {
+            console.log('Checking if domain already exists...');
+            const domainCheckResponse = await fetch(`/api/dbCheckDomain?website=${encodeURIComponent(website)}`);
+            const domainCheckData = await domainCheckResponse.json();
+
+            if (domainCheckData.exists) {
+                console.log('Domain already exists! Loading existing data...');
+                const existingData = domainCheckData.data;
+
+                // Parse the bot config from mylistingurl
+                let existingBotConfig = null;
+                try {
+                    existingBotConfig = JSON.parse(existingData.mylistingurl);
+                } catch (e) {
+                    console.log('Could not parse existing bot config, will create new session');
+                }
+
+                // Set the screenshot
+                setScreenshotUrl(existingData.screenshoturl);
+
+                // If we have bot config, skip straight to chat
+                if (existingBotConfig && existingBotConfig.botId) {
+                    setIsLoading(false);
+                    setIsScanning(false);
+                    setBotConfig({
+                        ...existingBotConfig,
+                        sessionID: sessionID,
+                        isReturning: true // Flag to show "Already made!" message
+                    });
+                    return; // Exit early - skip the full flow
+                }
+            }
+
+            console.log('Domain is new, proceeding with full flow...');
+        } catch (error) {
+            console.error('Error checking domain:', error);
+            // Continue with normal flow if check fails
+        }
 
         setLoading(true); // Ensure loading is set to true
 
         try {
-            console.log('Calling Vendasta Automation API');
-            let companyName = await getCompanyName(website);
-            console.log('Retrieved Company Name:', companyName);
-
-            const vendastaAutomationResponse = await fetch('/api/vendasta-automation-proxy', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email, website, company: companyName, sessionID })
-            });
-            //const vendastaAutomationData = await vendastaAutomationResponse.json();
-            //console.log('Vendasta Automation API Response:', vendastaAutomationData);
+            // Skip PDL API call - just use Unknown Company
+            let companyName = 'Unknown Company';
+            console.log('Company Name:', companyName);
             
             console.log('Calling Screenshot');
             const screenshotResponse = await fetch(`/api/get-screenshot?url=${encodeURIComponent(website)}&sessionID=${sessionID}`);
@@ -253,79 +272,95 @@ useEffect(() => {
                 console.error('Error fetching screenshot:', screenshotData.error);
             }
 
-            // Insert the visitor data into the database
+            // Insert the visitor data into the database (skip screenshot - too large)
             try {
-                console.log('SessionID: ', sessionID);
-                console.log('email: ', email);
-                console.log('website: ', website);
-                console.log('companyName: ', companyName);
-                console.log('myListingUrl: ', myListingUrl || "EMPTY");
-                console.log('ScreenshotUrl:', screenshotData.screenshotUrl || "EMPTY");
+                console.log('Inserting visitor:', sessionID, email, website, companyName);
                 await axios.post('/api/dbInsertVisitor', {
                     sessionID: sessionID,
                     email: email,
                     website: website,
                     companyName: companyName,
                     myListingUrl: "EMPTY",
-                    screenshotUrl: screenshotData.screenshotUrl || "EMPTY",
+                    screenshotUrl: "TEMP_URL", // TODO: Store screenshot separately
                 });
-                console.log('Visitor inserted successfully.', sessionID );
+                console.log('Visitor inserted successfully:', sessionID);
             } catch (error) {
-                console.error('Error inserting visitor:', error);
+                console.log('Error inserting visitor (non-critical):', error.message);
             }
 
-            console.log('Calling Zapier Webhook');
-            const response = await callZapierWebhook(email, website, `https://${process.env.NEXT_PUBLIC_DOMAIN}/api/zapier-callback`);
-            console.log('Zapier Response:', response);  // Log the full response
-            setZapierResponse(response);
+            console.log('Calling Website Scraper');
+            const scrapeResponse = await fetch('/api/scrape-website', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ url: website }),
+            });
+            const scrapeData = await scrapeResponse.json();
+            console.log('Scraper Response:', scrapeData);  // Log the full response
+            console.log('Method used:', scrapeData.method_used, 'Pages found:', scrapeData.pages_found);
 
-            if (companyName === 'Unknown Company') {
-            companyName = response && response.message ? extractCompanyName(response.message, website) : `magic-page-company-${website.replace(/^https?:\/\//, '').replace(/\./g, '-')}`;
-            console.log("Extracted Company Name: " + companyName);
+            // Process the scraped data into message items for display
+            const processedItems = processZapierResponse(scrapeData.message);
+            setMessageItems(processedItems);
+            setZapierResponse(scrapeData);
+            setLoading(false);
+            setCallbackReceived(true);
+
+            // Create Botpress session (without scraped content for now - payload too large)
+            console.log('Creating Botpress session...');
+            const botpressResponse = await fetch('/api/botpress/create-session', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    email,
+                    website,
+                    company: companyName,
+                    sessionID
+                    // scrapedContent: processedItems,  // TODO: Add back with pagination or KB
+                    // screenshot: screenshotData.screenshotUrl
+                })
+            });
+            const botpressData = await botpressResponse.json();
+            console.log('Botpress Session Created:', botpressData);
+
+            if (!botpressData.success) {
+                console.error('Failed to create Botpress session:', botpressData);
+                throw new Error('Botpress session creation failed');
             }
-            
-            const startTime = Date.now();
-            const oneMinute = 170000;
 
-            const pollForMyListingUrl = async () => {
-                let myListingUrl = null;
-                const startTime = Date.now(); // Hard-coded start time
-            
-                const poll = async () => {
-                    const elapsedTime = Date.now() - startTime;
-                    if (elapsedTime > oneMinute) { // Ensure oneMinute is defined
-                        clearInterval(pollingInterval);
-                        console.error('Polling timed out.');
-                        return;
-                    }
-            
-                    myListingUrl = await fetchMyListingUrl(sessionID);
-            
-                    if (myListingUrl && myListingUrl !== 'EMPTY') {
-                        try {
-                            await axios.post(`https://${process.env.NEXT_PUBLIC_DOMAIN}/api/dbUpdateVisitor`, {
-                                sessionID: sessionID,
-                                myListingUrl: myListingUrl
-                            });
-                            console.log('Visitor inserted successfully.', sessionID, myListingUrl);
-                        } catch (error) {
-                            console.error('Error inserting visitor:', error);
-                        }
-                        clearInterval(pollingInterval);
-                        setIframeUrl(myListingUrl);
-                        setShowIframe(true);
-                        setIsScanning(false);
-                        setaiListingUrl(myListingUrl);
-                        console.log('Fetched URL:', myListingUrl);
-                    } else {
-                        console.log('Waiting for URL to be updated...');
-                    }
+            // Get Botpress configuration
+            console.log('Fetching Botpress configuration...');
+            const configResponse = await fetch('/api/botpress/get-config');
+            const config = await configResponse.json();
+
+            if (config.success) {
+                // Store bot configuration with session data
+                const botConfigWithSession = {
+                    ...config,
+                    sessionID: sessionID,
                 };
-            
-                const pollingInterval = setInterval(poll, 5000); // Poll every 5 seconds
-            };
-            
-            await pollForMyListingUrl();
+
+                setBotConfig(botConfigWithSession);
+                setIsScanning(false);
+                console.log('Botpress configuration loaded:', botConfigWithSession);
+
+                // Update database with bot session info (non-critical)
+                try {
+                    await axios.post('/api/dbUpdateVisitor', {
+                        sessionID: sessionID,
+                        myListingUrl: JSON.stringify(botConfigWithSession)
+                    });
+                    console.log('Botpress session saved to database');
+                } catch (error) {
+                    console.log('Could not save to database (non-critical):', error.message);
+                    // Continue anyway - database save is not critical for UX
+                }
+            } else {
+                console.error('Failed to get Botpress configuration:', config.error);
+            }
             
 
         
@@ -357,7 +392,7 @@ useEffect(() => {
             ) : screenState === SCREEN_STATES.SCANNING ? (
                 <ScanningComponent screenshotUrl={screenshotUrl} messageItems={messageItems} />
             ) : screenState === SCREEN_STATES.CHAT_TEASE ? (
-                <Valhallah aiListingUrl={aiListingUrl} />
+                <Valhallah botConfig={botConfig} sessionID={sessionID} screenshotUrl={screenshotUrl} />
             ) : (
                 <div className="centered-content">
                     <FormComponent onSubmit={handleSubmit} />

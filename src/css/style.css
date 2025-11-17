@@ -39,7 +39,7 @@ body {
   width: 12em;
   height: 12em;
   border-radius: 50%;
-  background: #00A3FF;
+  background: #E76F00;
   position: relative;
 
   transform: scale(0.5);
@@ -49,7 +49,7 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: #00A3FF;
+  background: #E76F00;
   animation: 2s ease-in 0s infinite forwards inhale;
   position: absolute;
   inset: 0;
@@ -75,7 +75,7 @@ body {
 }
 
 .ai-orb__bg {
-  background: radial-gradient(#EB00FF, transparent 80%);
+  background: radial-gradient(#F8A433, transparent 80%);
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -107,11 +107,11 @@ body {
   height: 0.8em;
   border-radius: 50%;
   position: absolute;
-  background: #8249FF;
+  background: #F48D03;
   z-index: 15;
   transform-origin: center;
   opacity: 0;
-  animation: 2s cubic-bezier(0.32, 0, 0.67, 0) 0s infinite forwards ingestion; 
+  animation: 2s cubic-bezier(0.32, 0, 0.67, 0) 0s infinite forwards ingestion;
 }
 
 .particle1 {
@@ -124,7 +124,7 @@ body {
   top: -1em;
   left: -2em;
   offset-path: path("M0.5 0.5L69.5 69.5");
-  background: #EB00FF;
+  background: #F8A433;
   animation-delay: 0.5s;
   transform: scale(0.75);
 }
@@ -142,7 +142,7 @@ body {
   left: 0;
   offset-path: path("M0.5 0.5L69.5 69.5");
   animation-delay: 1.3s;
-  background: #00A3FF;
+  background: #00234C;
   transform: scale(0.6);
 }
 
@@ -159,7 +159,7 @@ body {
 }
 .set2 .particle1 {
   animation-delay: 1.6s;
-  background: #EB00FF;
+  background: #F28F1D;
   bottom: 2em;
   right: 2em;
 }
@@ -185,7 +185,7 @@ body {
 }
 .set3 .particle2 {
   animation-delay: 1s;
-  background: #EB00FF;
+  background: #FFBB7B;
 }
 .set3 .particle3 {
   animation-delay: 1s;

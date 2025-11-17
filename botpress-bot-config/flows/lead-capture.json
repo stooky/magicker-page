@@ -1,0 +1,138 @@
+{
+  "version": "0.1",
+  "name": "lead-capture",
+  "startNode": "entry",
+  "nodes": [
+    {
+      "id": "entry",
+      "type": "standard",
+      "name": "Welcome",
+      "onEnter": [
+        "say #!builtin_text-wFLk5p"
+      ],
+      "next": [
+        {
+          "condition": "true",
+          "node": "capture-name"
+        }
+      ]
+    },
+    {
+      "id": "capture-name",
+      "type": "standard",
+      "name": "Capture Name",
+      "onEnter": [
+        "say #!builtin_text-name"
+      ],
+      "onReceive": [
+        "session.name = event.preview",
+        "temp.valid = true"
+      ],
+      "next": [
+        {
+          "condition": "temp.valid",
+          "node": "capture-email"
+        }
+      ]
+    },
+    {
+      "id": "capture-email",
+      "type": "standard",
+      "name": "Capture Email",
+      "onEnter": [
+        "say #!builtin_text-email"
+      ],
+      "onReceive": [
+        "session.email = event.preview",
+        "temp.valid = !!session.email.match(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/)"
+      ],
+      "next": [
+        {
+          "condition": "temp.valid",
+          "node": "capture-company"
+        },
+        {
+          "condition": "!temp.valid",
+          "node": "invalid-email"
+        }
+      ]
+    },
+    {
+      "id": "invalid-email",
+      "type": "standard",
+      "name": "Invalid Email",
+      "onEnter": [
+        "say #!builtin_text-invalid-email"
+      ],
+      "next": [
+        {
+          "condition": "true",
+          "node": "capture-email"
+        }
+      ]
+    },
+    {
+      "id": "capture-company",
+      "type": "standard",
+      "name": "Capture Company",
+      "onEnter": [
+        "say #!builtin_text-company"
+      ],
+      "onReceive": [
+        "session.company = event.preview",
+        "temp.valid = true"
+      ],
+      "next": [
+        {
+          "condition": "temp.valid",
+          "node": "capture-website"
+        }
+      ]
+    },
+    {
+      "id": "capture-website",
+      "type": "standard",
+      "name": "Capture Website",
+      "onEnter": [
+        "say #!builtin_text-website"
+      ],
+      "onReceive": [
+        "session.website = event.preview",
+        "temp.valid = true"
+      ],
+      "next": [
+        {
+          "condition": "temp.valid",
+          "node": "qualification"
+        }
+      ]
+    },
+    {
+      "id": "qualification",
+      "type": "standard",
+      "name": "Ask Qualification Question",
+      "onEnter": [
+        "say #!builtin_text-qualification"
+      ],
+      "onReceive": [
+        "session.interest = event.preview"
+      ],
+      "next": [
+        {
+          "condition": "true",
+          "node": "thank-you"
+        }
+      ]
+    },
+    {
+      "id": "thank-you",
+      "type": "standard",
+      "name": "Thank You",
+      "onEnter": [
+        "say #!builtin_text-thankyou",
+        "callWebhook #!webhook-save-lead"
+      ],
+      "next": []
+    }
+  ]
+}

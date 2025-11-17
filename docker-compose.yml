@@ -1,0 +1,42 @@
+services:
+  botpress:
+    image: botpress/server:latest
+    container_name: botpress
+    ports:
+      - "3001:3000"  # Botpress UI on port 3001 (avoiding conflict with Next.js)
+    environment:
+      - DATABASE_URL=postgres://postgres:botpress_password@postgres:5432/botpress
+      - BP_MODULE_NLU_DUCKLINGURL=http://duckling:8000
+      - EXTERNAL_URL=http://localhost:3001
+      - BP_PRODUCTION=false
+      - BPFS_STORAGE=database
+    depends_on:
+      - postgres
+      - duckling
+    volumes:
+      - botpress_data:/botpress/data
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:14-alpine
+    container_name: botpress_postgres
+    environment:
+      POSTGRES_DB: botpress
+      POSTGRES_PASSWORD: botpress_password
+      POSTGRES_USER: postgres
+    ports:
+      - "5433:5432"  # Different port to avoid conflict with existing PostgreSQL
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  duckling:
+    image: rasa/duckling:latest
+    container_name: botpress_duckling
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+volumes:
+  botpress_data:
+  postgres_data:

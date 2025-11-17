@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(docker exec:*)",
+      "Bash(npm install)",
+      "Bash(mkdir:*)",
+      "Bash(npm install:*)",
+      "Bash(npx playwright:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(/dev/null)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(taskkill:*)",
+      "Bash(powershell -Command \"Stop-Process -Id 35832,62276,55388 -Force\")",
+      "Bash(tasklist:*)",
+      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,StartTime | Format-Table\")",
+      "Bash(powershell -Command \"Get-Process node -ErrorAction SilentlyContinue | Stop-Process -Force\")",
+      "Bash(powershell -Command:*)",
+      "Bash(npm run dev:log:*)",
+      "Bash(docker ps:*)",
+      "Bash(dir:*)",
+      "Bash(Start-Sleep -Seconds 10)",
+      "WebFetch(domain:membersolutions.com)",
+      "Bash(psql:*)",
+      "Bash(node -r dotenv/config scripts/export-db.js:*)",
+      "Bash(DB_USER=postgres DB_HOST=localhost DB_PASSWORD=botpress_password DB=mp DB_PORT=5433 node scripts/export-db.js:*)",
+      "Bash(node scripts/export-db.js:*)",
+      "Bash(docker-compose ps:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

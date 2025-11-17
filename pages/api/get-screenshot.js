@@ -1,5 +1,3 @@
-import fetch from 'node-fetch';
-
 export default async function handler(req, res) {
     const { url, sessionID } = req.query;
 
@@ -14,6 +12,10 @@ export default async function handler(req, res) {
     }
 
     const token = process.env.SCREENSHOTAPI_TOKEN;
+
+    // Debug: Log token value (first 8 chars only for security)
+    console.log("Token loaded:", token ? `${token.substring(0, 8)}...` : 'UNDEFINED');
+    console.log("All env vars with SCREENSHOT:", Object.keys(process.env).filter(k => k.includes('SCREENSHOT')));
 
     if (!token) {
         console.error("ScreenshotAPI token is not set");
@@ -35,7 +37,8 @@ export default async function handler(req, res) {
             return res.status(500).json({ error: errorData });
         }
 
-        const buffer = await response.buffer();
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
         const base64Image = buffer.toString('base64');
         const imageUrl = `data:image/png;base64,${base64Image}`;
 

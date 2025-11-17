@@ -1,0 +1,19 @@
+# Simplified Docker Compose - PostgreSQL only
+# Use this when using Botpress Cloud instead of self-hosted
+
+services:
+  postgres:
+    image: postgres:14-alpine
+    container_name: magicpage_postgres
+    environment:
+      POSTGRES_DB: mp
+      POSTGRES_PASSWORD: magicpage_password
+      POSTGRES_USER: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

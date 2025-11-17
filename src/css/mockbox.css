@@ -9,7 +9,7 @@
 -------------------------------------*/
 
 .magic_mock_body {
-    background: url(../images/Magic_page_bg.png);
+    background: linear-gradient(135deg, #00234C 0%, #003d7a 35%, #E76F00 85%, #FFBB7B 100%);
     background-repeat: no-repeat;
     background-size: cover;
     width: 100%;
@@ -46,7 +46,7 @@
 
 .magic_mock_body .mock_box form input {
     background-color: var(--white-color);
-    color: var(--color-gray);
+    color: #000000;
     border: 1px solid var(--color-gray);
     border-radius: 5px;
     margin-bottom: 23px;
@@ -54,6 +54,10 @@
     height: 43px;
     padding: 0px 25px;
     font-size: 16px;
+}
+
+.magic_mock_body .mock_box form input::placeholder {
+    color: #999999;
 }
 
 .magic_mock_body .mock_box form button.submit,
