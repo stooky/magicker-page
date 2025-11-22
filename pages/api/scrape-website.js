@@ -35,7 +35,9 @@ export default async function handler(req, res) {
         const statusCode = result.status === 'success' ? 200 : 500;
         return res.status(statusCode).json({
             status: result.status,
-            message: result.message,
+            message: result.message,      // Display snippets (numbered list)
+            fullContent: result.fullContent, // Full page content for KB
+            rawItems: result.rawItems,    // Original scraped data
             method_used: result.method_used,
             pages_found: result.pages_found
         });

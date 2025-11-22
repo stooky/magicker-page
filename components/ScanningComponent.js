@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { SNIPPET_DISPLAY_TIME } from '../configuration/screenStates';
 import '../src/css/main.css';
 import '../src/css/mockbox.css';
 import '../src/css/thumbnail.css';
@@ -35,10 +36,10 @@ export default function ScanningComponent({ screenshotUrl, messageItems }) {
             setMessages(messageItems);
             setCurrentMessageIndex(0); // Reset to first message
 
-            // Start cycling through messages every 3 seconds
+            // Start cycling through messages
             const interval = setInterval(() => {
                 setCurrentMessageIndex(prevIndex => (prevIndex + 1) % messageItems.length);
-            }, 3000); // Change message every 3 seconds
+            }, SNIPPET_DISPLAY_TIME);
 
             return () => clearInterval(interval);
         }

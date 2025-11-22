@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 // Removed Zapier webhook import - now using direct scraping API
-import { SCREEN_STATES } from '../configuration/screenStates';
+import { SCREEN_STATES, BOTPRESS_STATUS, SNIPPET_DISPLAY_TIME } from '../configuration/screenStates';
 import FormComponent from '../components/FormComponent';
 import LoadingComponent from '../components/LoadingComponent';
 import ScanningComponent from '../components/ScanningComponent';
@@ -25,9 +25,16 @@ const MainContainer = () => {
     const [isScanning, setIsScanning] = useState(false);  // New state for scanning
     const [messageItems, setMessageItems] = useState(null);
     const [aiListingUrl, setaiListingUrl] = useState('EMPTY');
-    const [botConfig, setBotConfig] = useState(null);
+    const [authToken, setAuthToken] = useState(null);
+    const [domain, setDomain] = useState(null);
+    const [isReturning, setIsReturning] = useState(false);
+    const [botpressStatus, setBotpressStatus] = useState(BOTPRESS_STATUS.NOT_STARTED);
     const [screenState, setScreenState] = useState(SCREEN_STATES.FORM);
     const [sessionID, setSessionID] = useState('');
+    // Knowledge Base state
+    const [kbFileId, setKbFileId] = useState(null);
+    const [kbReady, setKbReady] = useState(false);
+    const [snippetsShownCount, setSnippetsShownCount] = useState(0);
     const apiKey = process.env.NEXT_PUBLIC_PDL_API_KEY;
     const apiUrl = process.env.NEXT_PUBLIC_PDL_API_URL;
     const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN;
@@ -118,41 +125,19 @@ useEffect(() => {
         return items;
     };
 
-    
-    // Function to get myListingUrl from the database using sessionID
-    async function fetchMyListingUrl(sessionID) {
-        try {
-            const response = await axios.get(`https://${process.env.NEXT_PUBLIC_DOMAIN}/api/dbGetVisitor`, {
-                params: { sessionID: sessionID }
-            });
-            
-    
-            if (response.status === 200) {
-                const myListingUrl = response.data.data.mylistingurl;
-                console.log('My Listing URL:', myListingUrl);
-                // Use the myListingUrl variable in your program
-                return myListingUrl;
-            } else {
-                console.error('No data found for the given sessionID');
-                return null;
-            }
-        } catch (error) {
-            console.error('Error fetching data:', error.message);
-            return null;
-        }
-    }
 
     useEffect(() => {
         if (isLoading) {
             setScreenState(SCREEN_STATES.LOADING);
+        } else if (botpressStatus === BOTPRESS_STATUS.READY) {
+            // Check READY status BEFORE isScanning, because isScanning is still true
+            setScreenState(SCREEN_STATES.CHAT_TEASE);
         } else if (isScanning) {
             setScreenState(SCREEN_STATES.SCANNING);
-        } else if (botConfig !== null) {
-            setScreenState(SCREEN_STATES.CHAT_TEASE);
         } else {
             setScreenState(SCREEN_STATES.FORM);
         }
-    }, [isLoading, isScanning, botConfig]);
+    }, [isLoading, isScanning, botpressStatus]);
     
     // Loop through our messages.
     useEffect(() => {
@@ -178,6 +163,42 @@ useEffect(() => {
         }
     }, [screenshotUrl, messageItems]);
 
+    // Snippet display timer and counter
+    useEffect(() => {
+        console.log('Snippet tracking:', {
+            hasMessageItems: messageItems && messageItems.length > 0,
+            messageItemsLength: messageItems?.length,
+            botpressStatus: botpressStatus,
+            kbReady: kbReady,
+            snippetsShown: snippetsShownCount
+        });
+
+        if (messageItems && messageItems.length > 0 && botpressStatus === BOTPRESS_STATUS.CREATED) {
+            console.log(`✓ SNIPPET TRACKING STARTED: ${messageItems.length} snippets to show`);
+
+            // Increment snippet count every SNIPPET_DISPLAY_TIME
+            const countInterval = setInterval(() => {
+                setSnippetsShownCount(prev => {
+                    const newCount = prev + 1;
+                    console.log(`Snippet ${newCount} shown`);
+                    return Math.min(newCount, messageItems.length);
+                });
+            }, SNIPPET_DISPLAY_TIME);
+
+            return () => {
+                console.log('Snippet tracking cleanup');
+                clearInterval(countInterval);
+            };
+        }
+    }, [messageItems, botpressStatus]);
+
+    // Transition logic: Wait for BOTH KB ready AND 2+ snippets shown
+    useEffect(() => {
+        if (kbReady && snippetsShownCount >= 2 && botpressStatus === BOTPRESS_STATUS.CREATED) {
+            console.log(`✓ READY TO TRANSITION: KB ready=${kbReady}, Snippets shown=${snippetsShownCount}`);
+            setBotpressStatus(BOTPRESS_STATUS.READY);
+        }
+    }, [kbReady, snippetsShownCount, botpressStatus]);
 
 
     const extractCompanyName = (message, website) => {
@@ -190,6 +211,36 @@ useEffect(() => {
         // Remove "http://" or "https://"
         const cleanedWebsite = website.replace(/^https?:\/\//, '');
         return `magic-page-company-${cleanedWebsite.replace(/\./g, '-')}`;
+    };
+
+    // Poll Knowledge Base status until indexed and ready
+    const startKBPolling = (fileId) => {
+        console.log('Starting KB status polling for:', fileId);
+        const pollInterval = setInterval(async () => {
+            try {
+                const statusResponse = await fetch(`/api/botpress/kb-status?fileId=${fileId}`);
+                const statusData = await statusResponse.json();
+
+                console.log('KB Status:', statusData);
+
+                if (statusData.success && statusData.ready) {
+                    console.log('✓ Knowledge Base is READY!');
+                    setKbReady(true);
+                    clearInterval(pollInterval);
+                }
+            } catch (error) {
+                console.error('Error polling KB status:', error);
+            }
+        }, 2000); // Poll every 2 seconds
+
+        // Safety: stop polling after 60 seconds
+        setTimeout(() => {
+            clearInterval(pollInterval);
+            if (!kbReady) {
+                console.warn('KB polling timeout - assuming ready');
+                setKbReady(true);
+            }
+        }, 60000);
     };
 
 
@@ -236,16 +287,39 @@ useEffect(() => {
                 // Set the screenshot
                 setScreenshotUrl(existingData.screenshoturl);
 
-                // If we have bot config, skip straight to chat
-                if (existingBotConfig && existingBotConfig.botId) {
+                // If domain exists, generate JWT token for existing domain
+                if (existingBotConfig) {
                     setIsLoading(false);
                     setIsScanning(false);
-                    setBotConfig({
-                        ...existingBotConfig,
-                        sessionID: sessionID,
-                        isReturning: true // Flag to show "Already made!" message
+
+                    // Extract domain from website
+                    const extractDomain = (url) => {
+                        try {
+                            return new URL(url).hostname.replace('www.', '');
+                        } catch (e) {
+                            return url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+                        }
+                    };
+                    const websiteDomain = extractDomain(website);
+
+                    // Generate JWT token for existing domain
+                    const tokenResponse = await fetch('/api/botpress/get-auth-token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            domain: websiteDomain,
+                            sessionID: sessionID
+                        })
                     });
-                    return; // Exit early - skip the full flow
+                    const tokenData = await tokenResponse.json();
+
+                    if (tokenData.success) {
+                        setAuthToken(tokenData.authToken);
+                        setDomain(websiteDomain);
+                        setIsReturning(true);
+                        setBotpressStatus(BOTPRESS_STATUS.READY);
+                        return; // Exit early - skip the full flow
+                    }
                 }
             }
 
@@ -302,64 +376,91 @@ useEffect(() => {
 
             // Process the scraped data into message items for display
             const processedItems = processZapierResponse(scrapeData.message);
-            setMessageItems(processedItems);
+            // Limit to SNIPPET_SHOW number of snippets (default 5, max 10)
+            const snippetLimit = parseInt(process.env.SNIPPET_SHOW) || 5;
+            const limitedItems = processedItems.slice(0, Math.min(snippetLimit, 10));
+            console.log(`Showing ${limitedItems.length} of ${processedItems.length} snippets`);
+            setMessageItems(limitedItems);
             setZapierResponse(scrapeData);
             setLoading(false);
             setCallbackReceived(true);
 
-            // Create Botpress session (without scraped content for now - payload too large)
-            console.log('Creating Botpress session...');
-            const botpressResponse = await fetch('/api/botpress/create-session', {
+            // Create Knowledge Base with full scraped content
+            console.log('Creating Knowledge Base...');
+            const extractDomain = (url) => {
+                try {
+                    return new URL(url).hostname.replace('www.', '');
+                } catch (e) {
+                    return url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+                }
+            };
+            const domain = extractDomain(website);
+
+            const kbResponse = await fetch('/api/botpress/kb-create', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    email,
-                    website,
-                    company: companyName,
-                    sessionID
-                    // scrapedContent: processedItems,  // TODO: Add back with pagination or KB
-                    // screenshot: screenshotData.screenshotUrl
+                    domain: domain,
+                    fullContent: scrapeData.fullContent || '',
+                    sessionID: sessionID,
+                    website: website
                 })
             });
-            const botpressData = await botpressResponse.json();
-            console.log('Botpress Session Created:', botpressData);
+            const kbData = await kbResponse.json();
+            console.log('Knowledge Base created:', kbData);
 
-            if (!botpressData.success) {
-                console.error('Failed to create Botpress session:', botpressData);
-                throw new Error('Botpress session creation failed');
+            if (kbData.success) {
+                setKbFileId(kbData.fileId);
+                console.log('KB File ID:', kbData.fileId);
+                // Start polling for KB ready status
+                startKBPolling(kbData.fileId);
+            } else {
+                console.error('Failed to create KB, continuing anyway');
             }
 
-            // Get Botpress configuration
-            console.log('Fetching Botpress configuration...');
-            const configResponse = await fetch('/api/botpress/get-config');
-            const config = await configResponse.json();
+            // Generate JWT authentication token with domain context
+            console.log('Generating JWT authentication token...');
+            setBotpressStatus(BOTPRESS_STATUS.CREATING); // Mark as creating
+            const tokenResponse = await fetch('/api/botpress/get-auth-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    domain: domain,
+                    sessionID: sessionID
+                })
+            });
+            const tokenData = await tokenResponse.json();
+            console.log('JWT Token Response:', tokenData);
 
-            if (config.success) {
-                // Store bot configuration with session data
-                const botConfigWithSession = {
-                    ...config,
-                    sessionID: sessionID,
-                };
+            if (tokenData.success) {
+                setAuthToken(tokenData.authToken);
+                setDomain(domain);
+                setIsReturning(false); // New visitor
+                setBotpressStatus(BOTPRESS_STATUS.CREATED); // JWT created, but wait for snippets
+                console.log('JWT token generated - waiting for KB ready and snippets to complete');
 
-                setBotConfig(botConfigWithSession);
-                setIsScanning(false);
-                console.log('Botpress configuration loaded:', botConfigWithSession);
-
-                // Update database with bot session info (non-critical)
+                // Update database with domain info (non-critical)
                 try {
                     await axios.post('/api/dbUpdateVisitor', {
                         sessionID: sessionID,
-                        myListingUrl: JSON.stringify(botConfigWithSession)
+                        myListingUrl: JSON.stringify({ domain: domain, sessionID: sessionID })
                     });
-                    console.log('Botpress session saved to database');
+                    console.log('Domain info saved to database');
                 } catch (error) {
                     console.log('Could not save to database (non-critical):', error.message);
                     // Continue anyway - database save is not critical for UX
                 }
             } else {
-                console.error('Failed to get Botpress configuration:', config.error);
+                console.error('Failed to generate JWT token:', tokenData.error);
+                setBotpressStatus(BOTPRESS_STATUS.ERROR);
+                setIsScanning(false);
+                setIsLoading(false);
+                alert('Failed to create AI authentication. Please try again or contact support.');
+                return; // Exit early
             }
             
 
@@ -392,7 +493,7 @@ useEffect(() => {
             ) : screenState === SCREEN_STATES.SCANNING ? (
                 <ScanningComponent screenshotUrl={screenshotUrl} messageItems={messageItems} />
             ) : screenState === SCREEN_STATES.CHAT_TEASE ? (
-                <Valhallah botConfig={botConfig} sessionID={sessionID} screenshotUrl={screenshotUrl} />
+                <Valhallah authToken={authToken} domain={domain} isReturning={isReturning} screenshotUrl={screenshotUrl} />
             ) : (
                 <div className="centered-content">
                     <FormComponent onSubmit={handleSubmit} />

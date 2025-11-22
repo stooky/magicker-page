@@ -32,7 +32,17 @@ export default async function handler(req, res) {
 
         const response = await fetch(apiUrl);
         if (!response.ok) {
-            const errorData = await response.json();
+            const contentType = response.headers.get('content-type');
+            let errorData;
+
+            if (contentType && contentType.includes('application/json')) {
+                errorData = await response.json();
+            } else {
+                const errorText = await response.text();
+                console.error("Screenshot API returned non-JSON error:", errorText.substring(0, 200));
+                errorData = `API returned error: ${response.status} ${response.statusText}`;
+            }
+
             console.error("Error fetching screenshot:", errorData);
             return res.status(500).json({ error: errorData });
         }
