@@ -6,7 +6,13 @@ import '../src/css/ai_agent.css';
 import '../src/css/weird_stuff.css';
 import '../src/css/style.css';
 
-export default function Valhallah({ authToken, domain, isReturning, screenshotUrl }) {
+export default function Valhallah({ authToken, domain, isReturning, screenshotUrl, sessionID, website }) {
+    // Store domain globally so bot can access it
+    if (typeof window !== 'undefined') {
+        window.__MAGIC_PAGE_DOMAIN__ = domain;
+        window.__MAGIC_PAGE_WEBSITE__ = website;
+        window.__MAGIC_PAGE_SESSION__ = sessionID;
+    }
     const [chatReady, setChatReady] = useState(false);
     const [fadeIn, setFadeIn] = useState(false);
 
@@ -14,7 +20,9 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
         hasAuthToken: !!authToken,
         domain,
         isReturning,
-        hasScreenshot: !!screenshotUrl
+        hasScreenshot: !!screenshotUrl,
+        sessionID,
+        website
     });
 
     // Trigger fade-in animation on mount
@@ -27,60 +35,109 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
         return () => clearTimeout(timer);
     }, []);
 
-    // Load Botpress Cloud webchat with JWT authentication
+    // Load Botpress Cloud webchat - v3.4 official approach
     useEffect(() => {
-        console.log('[VALHALLAH] Webchat loading useEffect triggered', { authToken: authToken?.substring(0, 20) + '...', domain });
+        console.log('[VALHALLAH] Webchat loading useEffect triggered', { domain, sessionID, website });
 
-        if (!authToken || !domain) {
-            console.error('[VALHALLAH] Missing auth token or domain!', { hasToken: !!authToken, domain });
+        // Check if scripts already exist
+        const existingInjectScript = document.querySelector('script[src*="webchat/v3.4/inject.js"]');
+        const existingConfigScript = document.querySelector('script[src*="files.bpcontent.cloud"]');
+
+        if (existingInjectScript && existingConfigScript) {
+            console.log('[VALHALLAH] Botpress scripts already loaded');
+            setChatReady(true);
+
+            // Try to send userData if webchat is ready
+            setTimeout(() => {
+                if (window.botpressWebChat) {
+                    console.log('[VALHALLAH] Sending userData to existing webchat');
+                    sendUserDataToWebchat();
+                }
+            }, 500);
             return;
         }
 
-        // Load Botpress webchat v3.4 with official embed approach
-        console.log('[VALHALLAH] Creating Botpress script elements');
+        console.log('[VALHALLAH] Loading Botpress v3.4 scripts');
 
-        // First script: inject.js
+        // Load the inject script FIRST
         const injectScript = document.createElement('script');
         injectScript.src = 'https://cdn.botpress.cloud/webchat/v3.4/inject.js';
-        injectScript.async = true;
-        injectScript.onload = () => {
-            console.log('[VALHALLAH] Inject script loaded successfully');
-        };
-        injectScript.onerror = (error) => {
-            console.error('[VALHALLAH] Failed to load inject script:', error);
-        };
 
-        // Second script: bot-specific config
+        // Load the config script AFTER inject loads
         const configScript = document.createElement('script');
         configScript.src = 'https://files.bpcontent.cloud/2025/08/29/02/20250829022146-W5NQM7TZ.js';
         configScript.defer = true;
 
-        configScript.onload = () => {
-            console.log('[VALHALLAH] Config script loaded successfully');
-            console.log('[VALHALLAH] Domain context:', domain);
-            console.log('[VALHALLAH] Checking for window.botpressWebChat:', typeof window.botpressWebChat);
-            setChatReady(true);
+        let configLoaded = false;
+
+        const checkBothLoaded = () => {
+            if (configLoaded) {
+                console.log('[VALHALLAH] Both scripts loaded successfully');
+                setChatReady(true);
+            }
         };
 
-        configScript.onerror = (error) => {
-            console.error('[VALHALLAH] Failed to load Botpress config script:', error);
+        injectScript.onload = () => {
+            console.log('[VALHALLAH] Inject script loaded');
+            console.log('[VALHALLAH] Domain for KB search:', domain);
+
+            // BEFORE loading config script, set up userData interception
+            // The config script will call window.botpressWebChat.mergeConfig()
+            // We need to intercept that and add userData
+
+            const originalMergeConfig = window.botpressWebChat?.mergeConfig;
+
+            if (window.botpressWebChat && typeof originalMergeConfig === 'function') {
+                window.botpressWebChat.mergeConfig = function(config) {
+                    console.log('[VALHALLAH] Intercepting mergeConfig, adding userData');
+
+                    // Add userData to the config
+                    const configWithUserData = {
+                        ...config,
+                        userData: {
+                            domain: domain,
+                            website: website,
+                            sessionID: sessionID
+                        }
+                    };
+
+                    console.log('[VALHALLAH] Config with userData:', configWithUserData);
+
+                    // Call the original mergeConfig with enhanced config
+                    return originalMergeConfig.call(this, configWithUserData);
+                };
+
+                console.log('[VALHALLAH] ✅ mergeConfig intercepted');
+            } else {
+                console.warn('[VALHALLAH] Could not intercept mergeConfig - will try alternative approach');
+            }
+
+            configScript.onload = () => {
+                console.log('[VALHALLAH] Config script loaded - webchat ready');
+                console.log('[VALHALLAH] Bot should have userData with domain:', domain);
+                configLoaded = true;
+                checkBothLoaded();
+            };
+
+            configScript.onerror = (error) => {
+                console.error('[VALHALLAH] Failed to load config script:', error);
+            };
+
+            document.body.appendChild(configScript);
         };
 
-        console.log('[VALHALLAH] Appending scripts to document body');
+        injectScript.onerror = (error) => {
+            console.error('[VALHALLAH] Failed to load inject script:', error);
+        };
+
+        console.log('[VALHALLAH] Appending Botpress v3.4 inject script to document body');
         document.body.appendChild(injectScript);
-        document.body.appendChild(configScript);
-        console.log('[VALHALLAH] Scripts appended, waiting for load...');
 
+        // Cleanup function
         return () => {
-            // Cleanup: remove scripts on unmount
-            if (document.body.contains(injectScript)) {
-                document.body.removeChild(injectScript);
-            }
-            if (document.body.contains(configScript)) {
-                document.body.removeChild(configScript);
-            }
+            console.log('[VALHALLAH] Component unmounting - scripts will persist');
         };
-    }, [authToken, domain]);
+    }, [sessionID, website, domain]);
 
     const backgroundStyle = screenshotUrl ? {
         backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url(${screenshotUrl})`,
@@ -147,8 +204,8 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                 </div>
             </div>
 
-            {/* Botpress webchat will render in bottom right automatically */}
-            <div id="bp-web-widget-container" />
+            {/* Botpress webchat container */}
+            <div id="webchat" />
 
             {/* Footer */}
             <div style={{

@@ -1,0 +1,49 @@
+Welcome to Magic Page - AI Chatbot Lead Capture System
+
+About Magic Page:
+Magic Page is an innovative lead generation tool that automatically creates AI chatbots for websites. We help businesses transform any website into an intelligent AI-powered lead capture system in seconds.
+
+Our Services:
+- One-Click Bot Creation: Generate AI chatbots from any website URL
+- Intelligent Web Scraping: Multi-strategy content extraction with Playwright and Cheerio
+- AI-Powered Analysis: OpenAI GPT-4 intelligently extracts relevant information
+- Lead Capture: Automated lead collection with database storage
+- Knowledge Base Integration: Bots are trained on your actual website content
+
+How It Works:
+1. Enter your email and website URL
+2. Our system scrapes and analyzes your website content
+3. We create a custom AI chatbot trained on your website
+4. The chatbot captures leads through conversational AI
+5. All leads are stored in our secure database
+
+Technology Stack:
+- Frontend: Next.js 14, React 18
+- Backend: Next.js API Routes, Node.js
+- Database: PostgreSQL with Docker support
+- AI: OpenAI GPT-4, Botpress Cloud
+- Scraping: Playwright, Cheerio, Axios
+
+Key Features:
+- Domain Deduplication: Prevents duplicate bot creation
+- Real-time Progress: Live updates during bot creation
+- Beautiful UI: Member Solutions branded interface
+- Graceful Degradation: Works even if database is unavailable
+- Screenshot Capture: Automatic visual context
+
+About Member Solutions:
+Powered by Member Solutions, we provide enterprise-grade chatbot solutions for businesses of all sizes. Our platform is built with cutting-edge technology to ensure reliability, scalability, and excellent user experience.
+
+Contact Information:
+For support or questions, please visit our website or contact the Member Solutions development team.
+
+Pricing:
+We offer flexible pricing plans to suit businesses of all sizes. Contact us for a custom quote based on your needs.
+
+Getting Started:
+Simply enter your business email and website URL to get started. Our system will handle the rest, creating a custom AI chatbot trained specifically on your website content.
+
+Privacy & Security:
+We take privacy seriously. All data is encrypted and stored securely. We never share your information with third parties. For more details, please review our Privacy Policy.
+
+This is a default knowledge base. If you're seeing this message, it means the bot couldn't find specific information about the website you asked about.
