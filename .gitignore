@@ -38,3 +38,20 @@ next-env.d.ts
 # logs
 logs/
 *.log
+
+# test files
+/pages/test-*.js
+/pages/test-*.html
+/components/*Simple.js
+test-*.html
+
+# archives and exports
+*.zip
+/db_dump/
+/botpress-export/
+/botpress-export-analysis/
+Memby - */
+*.pdf
+
+# claude settings (local only)
+.claude/settings.local.json
