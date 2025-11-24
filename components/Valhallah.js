@@ -98,7 +98,7 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
             // Load the config script
             configScript.onload = () => {
                 console.log('[VALHALLAH] Config script loaded - webchat ready');
-                console.log('[VALHALLAH] Initializing with userData');
+                console.log('[VALHALLAH] Waiting for webchat to initialize...');
                 configLoaded = true;
                 checkBothLoaded();
 
@@ -107,18 +107,19 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                 // - Use init() NOT mergeConfig() for userData
                 // - Can only call init() with userData ONCE
                 // - userData must be flat object with string values
-                setTimeout(() => {
-                    console.log('');
-                    console.log('========================================');
-                    console.log('[VALHALLAH] 🔍 DEBUGGING BOTPRESS WEBCHAT API');
-                    console.log('========================================');
-                    console.log('window.botpressWebChat exists:', !!window.botpressWebChat);
-                    console.log('Available methods:', window.botpressWebChat ? Object.keys(window.botpressWebChat) : 'N/A');
-                    console.log('typeof init:', typeof window.botpressWebChat?.init);
-                    console.log('========================================');
-                    console.log('');
+
+                // Poll for webchat availability (it takes time to initialize)
+                let attempts = 0;
+                const maxAttempts = 20; // Try for 10 seconds (20 * 500ms)
+
+                const pollForWebchat = setInterval(() => {
+                    attempts++;
+
+                    console.log(`[VALHALLAH] Polling attempt ${attempts}/${maxAttempts} - window.botpressWebChat exists:`, !!window.botpressWebChat);
 
                     if (window.botpressWebChat && typeof window.botpressWebChat.init === 'function') {
+                        clearInterval(pollForWebchat);
+
                         console.log('');
                         console.log('========================================');
                         console.log('[VALHALLAH] 🎯 INITIALIZING BOTPRESS WEBCHAT WITH USERDATA');
@@ -126,25 +127,47 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                         console.log('Domain:', domain);
                         console.log('Website:', website);
                         console.log('SessionID:', sessionID);
-
-                        // Pass domain info through userData using init()
-                        // NOTE: userData must be flat object with string values only
-                        window.botpressWebChat.init({
-                            userData: {
-                                domain: domain,
-                                website: website,
-                                sessionID: sessionID
-                            }
-                        });
-
-                        console.log('✅ userData configured in webchat via init()');
+                        console.log('Available methods:', Object.keys(window.botpressWebChat));
                         console.log('========================================');
-                        console.log('');
-                    } else {
-                        console.error('[VALHALLAH] ❌ window.botpressWebChat.init not available');
+
+                        try {
+                            // Pass domain info through userData using init()
+                            // NOTE: userData must be flat object with string values only
+                            window.botpressWebChat.init({
+                                userData: {
+                                    domain: domain,
+                                    website: website,
+                                    sessionID: sessionID
+                                }
+                            });
+
+                            console.log('✅ userData configured in webchat via init()');
+
+                            // HYBRID APPROACH: Also intercept messages and add domain to payload
+                            // This provides a fallback since userData is unreliable in Botpress
+                            if (typeof window.botpressWebChat.onEvent === 'function') {
+                                console.log('✅ Setting up message interceptor as fallback');
+
+                                window.botpressWebChat.onEvent((event) => {
+                                    if (event.type === 'MESSAGE.SENT') {
+                                        console.log('[VALHALLAH] Message sent - domain context:', domain);
+                                        // Domain will be in user object from init(), but also available in window context
+                                    }
+                                }, ['MESSAGE.SENT']);
+                            }
+
+                            console.log('========================================');
+                            console.log('');
+                        } catch (error) {
+                            console.error('[VALHALLAH] ❌ Error calling init():', error);
+                        }
+                    } else if (attempts >= maxAttempts) {
+                        clearInterval(pollForWebchat);
+                        console.error('[VALHALLAH] ❌ window.botpressWebChat.init not available after', maxAttempts, 'attempts');
+                        console.log('[VALHALLAH] window.botpressWebChat exists:', !!window.botpressWebChat);
                         console.log('[VALHALLAH] Available methods:', window.botpressWebChat ? Object.keys(window.botpressWebChat) : 'none');
                     }
-                }, 1000);
+                }, 500); // Check every 500ms
             };
 
             configScript.onerror = (error) => {

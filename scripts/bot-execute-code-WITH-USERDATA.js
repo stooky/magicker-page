@@ -32,23 +32,30 @@ if (USE_HARDCODED_DOMAIN) {
     console.log('🔧 USING HARDCODED DOMAIN:', searchDomain);
 } else {
     // Production mode: try to get domain from userData
-    searchDomain = user.domain
-        || user.userData?.domain
-        || event.payload?.domain
-        || conversation.domain
-        || DEFAULT_DOMAIN;
+    // NOTE: userData from init() is stored in user.tags, NOT user.userData
+    searchDomain = user.tags?.domain        // ← userData from init() goes here!
+        || user.domain                      // ← Direct property (if set)
+        || user.userData?.domain            // ← Nested userData (alternative)
+        || event.payload?.domain            // ← Event payload
+        || event.tags?.domain               // ← Event tags
+        || conversation.domain              // ← Stored in conversation
+        || conversation.tags?.domain        // ← Conversation tags
+        || DEFAULT_DOMAIN;                  // ← Last resort
 
     console.log('===== DYNAMIC DOMAIN RESOLUTION =====');
+    console.log('user.tags?.domain:', user.tags?.domain);
     console.log('user.domain:', user.domain);
     console.log('user.userData?.domain:', user.userData?.domain);
     console.log('event.payload?.domain:', event.payload?.domain);
+    console.log('event.tags?.domain:', event.tags?.domain);
     console.log('conversation.domain:', conversation.domain);
+    console.log('conversation.tags?.domain:', conversation.tags?.domain);
     console.log('RESOLVED searchDomain:', searchDomain);
     console.log('');
 }
 
 // Get optional fileId (if passed from frontend)
-const kbFileId = user.kbFileId || user.userData?.fileId || null;
+const kbFileId = user.tags?.fileId || user.kbFileId || user.userData?.fileId || null;
 console.log('KB File ID (if passed):', kbFileId);
 console.log('');
 
