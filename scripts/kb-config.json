@@ -1,0 +1,14 @@
+{
+  "defaultKB": {
+    "fileId": "file_01KAPNYHC1882FEN971XZB8M8M",
+    "fileName": "default-kb.txt",
+    "tags": {
+      "source": "default",
+      "type": "fallback",
+      "uploadedAt": "2025-11-22T21:01:33.082Z",
+      "uploadedBy": "kb-manager-script"
+    },
+    "uploadedAt": "2025-11-22T21:01:33.793Z",
+    "botId": "3809961f-f802-40a3-aa5a-9eb91c0dedbb"
+  }
+}

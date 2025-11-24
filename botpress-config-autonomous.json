@@ -1,0 +1,329 @@
+{
+  "version": "1.19",
+  "settings": {
+    "defaultLanguage": "en",
+    "languages": [],
+    "description": "Magic Page AI Chatbot with Dynamic KB and Autonomous Agent",
+    "id": "3809961f-f802-40a3-aa5a-9eb91c0dedbb",
+    "inactivityTimeout": 30,
+    "botVariables": [],
+    "userVariables": [],
+    "nodeRepetitionLimit": 3,
+    "configVariables": {},
+    "cognitiveConfigs": {
+      "openAi": {}
+    },
+    "useLlmz": true,
+    "defaultBestModel": "openai__gpt-4.1-2025-04-14",
+    "defaultFastModel": "openai__gpt-4.1-mini-2025-04-14",
+    "useClient": true,
+    "llmzVersion": "01-Oct-2024",
+    "autonomousModel": "best-model",
+    "fallbackModel": "google-ai__models/gemini-2.0-flash",
+    "usePushToGit": false,
+    "disablePublishButton": false,
+    "useCognitiveV2": false
+  },
+  "flows": [
+    {
+      "id": "wf-main",
+      "name": "Main",
+      "startNode": "nd-start",
+      "variables": [
+        {
+          "name": "kbContext",
+          "type": "string",
+          "description": "Knowledge base context from search"
+        },
+        {
+          "name": "kbFound",
+          "type": "boolean",
+          "description": "Whether KB context was found"
+        },
+        {
+          "name": "searchMode",
+          "type": "string",
+          "description": "Which search mode was used"
+        },
+        {
+          "name": "userData",
+          "type": "object",
+          "description": "User data from webchat"
+        }
+      ],
+      "links": [
+        {
+          "id": "edg-start-to-getuser",
+          "source": "nd-start",
+          "sourcePort": "trs-start",
+          "target": "nd-get-user-data"
+        },
+        {
+          "id": "edg-getuser-to-search",
+          "source": "nd-get-user-data",
+          "sourcePort": "nd-get-user-data",
+          "target": "nd-search-kb"
+        },
+        {
+          "id": "edg-search-to-autonomous",
+          "source": "nd-search-kb",
+          "sourcePort": "nd-search-kb",
+          "target": "nd-autonomous-agent"
+        },
+        {
+          "id": "edg-autonomous-to-end",
+          "source": "nd-autonomous-agent",
+          "sourcePort": "nd-autonomous-agent",
+          "target": "nd-end"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "nd-start",
+          "name": "Start",
+          "type": "entry",
+          "deletable": false,
+          "variables": [],
+          "instructions": [
+            {
+              "id": "trs-start",
+              "type": "transition",
+              "condition": "true",
+              "targetNodeId": "nd-get-user-data",
+              "transitions": []
+            }
+          ],
+          "x": 100,
+          "y": 100
+        },
+        {
+          "id": "nd-get-user-data",
+          "name": "Get User Data",
+          "type": "standard",
+          "deletable": true,
+          "instructions": [
+            {
+              "id": "ins-get-user-data",
+              "type": "action",
+              "action": "webchat/getUserData",
+              "nodeId": "nd-get-user-data",
+              "outputVariable": "workflow.userData",
+              "transitions": []
+            }
+          ],
+          "defaultTransition": {
+            "targetNodeId": "nd-search-kb"
+          },
+          "x": 300,
+          "y": 100
+        },
+        {
+          "id": "nd-search-kb",
+          "name": "Search KB",
+          "type": "standard",
+          "deletable": true,
+          "instructions": [
+            {
+              "id": "ins-search-kb-code",
+              "type": "action",
+              "action": "inline-code",
+              "nodeId": "nd-search-kb",
+              "code": "/*******************************************************************\n *  🔍 Dynamic KB Search with Domain-Specific and Default Fallback\n *******************************************************************/\n\nconsole.log(\"===== 🔍 Dynamic KB Retrieval Started =====\");\nconsole.log(\"Incoming event.preview:\", event.preview);\n\n// Extract from Get User Data card\nconst sessionID = workflow.userData?.sessionID;\nconst website = workflow.userData?.website;\nconst domain = workflow.userData?.domain;\n\n// Extract from payload (fallback)\nconst payloadSession = event.payload?.sessionID;\nconst payloadWebsite = event.payload?.website;\nconst payloadDomain = event.payload?.domain;\n\n// Final merged values\nconst finalSessionID = sessionID || payloadSession;\nconst finalWebsite = website || payloadWebsite;\nconst finalDomain = domain || payloadDomain;\n\nconsole.log(\"Merged sessionID:\", finalSessionID);\nconsole.log(\"Merged website:\", finalWebsite);\nconsole.log(\"Merged domain:\", finalDomain);\n\n// Build search tags\nconst searchTags = {};\nif (finalSessionID) searchTags.sessionID = finalSessionID;\nif (finalWebsite) searchTags.website = finalWebsite;\nif (finalDomain) searchTags.domain = finalDomain;\n\nconsole.log(\"Tags for primary search:\", JSON.stringify(searchTags));\nconsole.log(\"Number of tags:\", Object.keys(searchTags).length);\n\n// Main search logic\nlet context = \"\";\nlet found = false;\nlet searchMode = \"\";\n\ntry {\n  // If we have dynamic tags\n  if (Object.keys(searchTags).length > 0) {\n    console.log(\"🔎 MODE: Searching domain/session-specific KB…\");\n    searchMode = \"domain-specific-attempt\";\n\n    // Search for domain-specific KB\n    console.log(\"--- Running Primary KB Search ---\");\n    const res = await client.searchFiles({\n      query: event.preview,\n      contextDepth: 1,\n      tags: searchTags,\n      limit: 10\n    });\n\n    const passages = res.passages || res.data?.passages || [];\n    console.log(\"Primary search → passages found:\", passages.length);\n\n    if (passages.length > 0) {\n      context = passages.map(p => p.content).join(\"\\n\\n\");\n      found = true;\n      searchMode = \"domain-specific-success\";\n      console.log(\"✅ Primary KB search successful\");\n    } else {\n      // Fallback to default KB\n      console.log(\"⚠️ No tagged KB results — FALLING BACK to DEFAULT KB…\");\n      searchMode = \"default-fallback\";\n\n      const fallbackRes = await client.searchFiles({\n        query: event.preview,\n        contextDepth: 1,\n        tags: { source: \"default\" },\n        limit: 10\n      });\n\n      const fallbackPassages = fallbackRes.passages || fallbackRes.data?.passages || [];\n      console.log(\"Fallback search → passages found:\", fallbackPassages.length);\n\n      if (fallbackPassages.length > 0) {\n        context = fallbackPassages.map(p => p.content).join(\"\\n\\n\");\n        found = true;\n        console.log(\"✅ Default KB search successful\");\n      } else {\n        console.log(\"❌ No results from default KB\");\n      }\n    }\n  }\n  // No tags at all → only search default KB\n  else {\n    console.log(\"⚠️ MODE: No usable tags found — using ONLY default KB.\");\n    searchMode = \"default-only\";\n\n    const res = await client.searchFiles({\n      query: event.preview,\n      contextDepth: 1,\n      tags: { source: \"default\" },\n      limit: 10\n    });\n\n    const passages = res.passages || res.data?.passages || [];\n    console.log(\"Default KB search → passages found:\", passages.length);\n\n    if (passages.length > 0) {\n      context = passages.map(p => p.content).join(\"\\n\\n\");\n      found = true;\n      console.log(\"✅ Default KB search successful\");\n      console.log(\"First passage preview:\", passages[0].content?.substring(0, 150));\n    } else {\n      console.log(\"❌ No results from default KB\");\n    }\n  }\n\n} catch (error) {\n  console.error(\"❌ ERROR during KB search:\", error.message || error);\n  context = \"\";\n  found = false;\n  searchMode = \"error\";\n}\n\n// Save results to workflow variables\nworkflow.kbContext = context;\nworkflow.kbFound = found;\nworkflow.searchMode = searchMode;\n\nconsole.log(\"===== 🧠 Final KB Context Loaded =====\");\nconsole.log(\"Search Mode:\", searchMode);\nconsole.log(\"kbFound:\", found);\nconsole.log(\"kbContext length:\", context.length, \"characters\");\nconsole.log(\"===== Dynamic KB Retrieval Complete =====\");",
+              "transitions": []
+            }
+          ],
+          "defaultTransition": {
+            "targetNodeId": "nd-autonomous-agent"
+          },
+          "x": 500,
+          "y": 100
+        },
+        {
+          "id": "nd-autonomous-agent",
+          "name": "Autonomous Agent",
+          "type": "autonomous",
+          "deletable": true,
+          "instructions": [
+            {
+              "id": "ins-autonomous-config",
+              "type": "autonomous",
+              "nodeId": "nd-autonomous-agent",
+              "config": {
+                "model": "best-model",
+                "temperature": 0.7,
+                "maxTokens": 1000,
+                "systemInstructions": "You are a helpful AI assistant for **Magic Page**, an innovative AI chatbot lead capture platform powered by **Member Solutions**.\n\n## Your Role\nYou help users understand Magic Page's features, capabilities, and how it can benefit their business.\n\n{{#if workflow.kbFound}}\n## Knowledge Base Context\nUse the following knowledge base to answer user questions accurately and naturally:\n\n---\n{{workflow.kbContext}}\n---\n\n**Instructions:**\n- Answer questions based on the knowledge base above\n- Be conversational, friendly, and professional\n- If the user asks about features, pricing, or how Magic Page works, reference the context\n- Keep responses concise but informative (2-4 sentences typically)\n- Use natural language, not robotic responses\n- If multiple pieces of information are relevant, organize them clearly\n\n{{else}}\n**Note:** You don't have access to specific knowledge base information right now. Provide general helpful responses about Magic Page's chatbot platform and offer to help with general questions.\n{{/if}}\n\n## Guidelines\n- Be enthusiastic but professional\n- Focus on how Magic Page solves business problems\n- Highlight key benefits: one-click bot creation, AI-powered scraping, lead capture\n- If unsure, acknowledge it politely and offer alternative help\n- Don't make up information not in the knowledge base\n- Use emojis sparingly (only when it enhances communication)\n\n## Example Tone\n\"Magic Page makes it incredibly easy to create AI chatbots! You simply enter your website URL, and our system automatically scrapes your content, analyzes it with GPT-4, and creates a custom chatbot trained on your website. The whole process takes just seconds!\"",
+                "maxTurns": 10,
+                "exitConditions": [
+                  {
+                    "type": "user_intent",
+                    "value": "goodbye"
+                  },
+                  {
+                    "type": "user_intent",
+                    "value": "end_conversation"
+                  }
+                ],
+                "tools": [],
+                "enableMemory": true
+              },
+              "transitions": []
+            }
+          ],
+          "defaultTransition": {
+            "targetNodeId": "nd-end"
+          },
+          "x": 700,
+          "y": 100
+        },
+        {
+          "id": "nd-end",
+          "name": "End",
+          "type": "end",
+          "deletable": false,
+          "x": 900,
+          "y": 100
+        }
+      ]
+    },
+    {
+      "id": "wf-error",
+      "name": "Error",
+      "startNode": "nd-error-start",
+      "variables": [],
+      "links": [
+        {
+          "id": "edg-error-start-to-handler",
+          "source": "nd-error-start",
+          "sourcePort": "trs-error-start",
+          "target": "nd-error-handler"
+        },
+        {
+          "id": "edg-error-handler-to-end",
+          "source": "nd-error-handler",
+          "sourcePort": "nd-error-handler",
+          "target": "nd-error-end"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "nd-error-start",
+          "name": "On_Error",
+          "type": "entry",
+          "deletable": false,
+          "variables": [],
+          "instructions": [
+            {
+              "id": "trs-error-start",
+              "type": "transition",
+              "condition": "true",
+              "targetNodeId": "nd-error-handler",
+              "transitions": []
+            }
+          ],
+          "x": 100,
+          "y": 100
+        },
+        {
+          "id": "nd-error-handler",
+          "name": "Handler",
+          "type": "standard",
+          "deletable": true,
+          "instructions": [
+            {
+              "id": "ins-error-message",
+              "type": "content",
+              "content": {
+                "type": "text",
+                "text": {
+                  "staticValue": "Sorry, an error occurred. Please try again later or contact support.",
+                  "dynamicValue": "",
+                  "valueType": "static"
+                },
+                "typing": {
+                  "valueType": "static",
+                  "staticValue": true
+                }
+              },
+              "nodeId": "nd-error-handler",
+              "transitions": []
+            }
+          ],
+          "defaultTransition": {
+            "targetNodeId": "nd-error-end"
+          },
+          "x": 300,
+          "y": 100
+        },
+        {
+          "id": "nd-error-end",
+          "name": "End",
+          "type": "end",
+          "deletable": false,
+          "x": 500,
+          "y": 100
+        }
+      ]
+    },
+    {
+      "id": "wf-conversation-end",
+      "name": "Conversation End",
+      "startNode": "nd-conv-end-start",
+      "variables": [],
+      "links": [
+        {
+          "id": "edg-conv-end-start-to-handler",
+          "source": "nd-conv-end-start",
+          "sourcePort": "trs-conv-end-start",
+          "target": "nd-conv-end-handler"
+        },
+        {
+          "id": "edg-conv-end-handler-to-end",
+          "source": "nd-conv-end-handler",
+          "sourcePort": "nd-conv-end-handler",
+          "target": "nd-conv-end-end"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "nd-conv-end-start",
+          "name": "On_Explicit_Ending",
+          "type": "entry",
+          "deletable": false,
+          "variables": [],
+          "instructions": [
+            {
+              "id": "trs-conv-end-start",
+              "type": "transition",
+              "condition": "true",
+              "targetNodeId": "nd-conv-end-handler",
+              "transitions": []
+            }
+          ],
+          "x": 100,
+          "y": 100
+        },
+        {
+          "id": "nd-conv-end-handler",
+          "name": "Handler",
+          "type": "standard",
+          "deletable": true,
+          "instructions": [],
+          "defaultTransition": {
+            "targetNodeId": "nd-conv-end-end"
+          },
+          "x": 300,
+          "y": 100
+        },
+        {
+          "id": "nd-conv-end-end",
+          "name": "End",
+          "type": "end",
+          "deletable": false,
+          "x": 500,
+          "y": 100
+        }
+      ]
+    }
+  ]
+}
