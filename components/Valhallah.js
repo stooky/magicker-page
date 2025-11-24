@@ -98,53 +98,35 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
             // Load the config script
             configScript.onload = () => {
                 console.log('[VALHALLAH] Config script loaded - webchat ready');
-                console.log('[VALHALLAH] Will prepend domain to first message');
+                console.log('[VALHALLAH] Initializing with userData');
                 configLoaded = true;
                 checkBothLoaded();
 
-                // Intercept the first message to add domain prefix
-                let firstMessageSent = false;
+                // Initialize Botpress webchat with userData
                 setTimeout(() => {
-                    if (window.botpressWebChat && typeof window.botpressWebChat.sendEvent === 'function') {
-                        const originalSendEvent = window.botpressWebChat.sendEvent;
+                    if (window.botpressWebChat && typeof window.botpressWebChat.mergeConfig === 'function') {
+                        console.log('');
+                        console.log('========================================');
+                        console.log('[VALHALLAH] 🎯 INITIALIZING BOTPRESS WEBCHAT');
+                        console.log('========================================');
+                        console.log('Domain:', domain);
+                        console.log('Website:', website);
+                        console.log('SessionID:', sessionID);
 
-                        window.botpressWebChat.sendEvent = function(event) {
-                            // Only modify the first text message
-                            if (!firstMessageSent && event.type === 'text') {
-                                console.log('');
-                                console.log('========================================');
-                                console.log('[VALHALLAH] 🎯 INTERCEPTING FIRST MESSAGE');
-                                console.log('========================================');
-                                console.log('Original event:', event);
-                                console.log('Original text:', event.payload?.text);
-                                console.log('Domain to inject:', domain);
-                                console.log('Website:', website);
-                                console.log('SessionID:', sessionID);
-
-                                firstMessageSent = true;
-                                const modifiedEvent = {
-                                    ...event,
-                                    payload: {
-                                        ...event.payload,
-                                        text: `[DOMAIN:${domain}] ${event.payload.text}`
-                                    }
-                                };
-
-                                console.log('Modified text:', modifiedEvent.payload.text);
-                                console.log('✅ Sending modified event to Botpress');
-                                console.log('========================================');
-                                console.log('');
-                                return originalSendEvent.call(this, modifiedEvent);
+                        // Pass domain info through userData
+                        window.botpressWebChat.mergeConfig({
+                            userData: {
+                                domain: domain,
+                                website: website,
+                                sessionID: sessionID
                             }
+                        });
 
-                            // Log all subsequent messages for debugging
-                            console.log('[VALHALLAH] Sending message (unmodified):', event.payload?.text);
-
-                            // All subsequent messages pass through unchanged
-                            return originalSendEvent.call(this, event);
-                        };
-
-                        console.log('[VALHALLAH] ✅ sendEvent intercepted');
+                        console.log('✅ userData configured in webchat');
+                        console.log('========================================');
+                        console.log('');
+                    } else {
+                        console.error('[VALHALLAH] ❌ window.botpressWebChat.mergeConfig not available');
                     }
                 }, 1000);
             };
