@@ -40,9 +40,13 @@ Database Password:      _____________________ (24+ chars)
 ## Deployment Steps (45-60 min)
 
 ### Phase 1: Connect to Server ⏱️ 2 min
+
+**Connect to Vultr server:**
 ```bash
 ssh root@YOUR_VULTR_IP
 ```
+
+**Note:** Vultr gives you root access by default - this is fine for testing!
 
 **Verify Ubuntu:**
 ```bash
@@ -59,21 +63,25 @@ df -h             # Check ~76GB disk
 
 ### Phase 2: Run Setup Script ⏱️ 10 min
 ```bash
-wget https://raw.githubusercontent.com/stooky/magicker-page/master/deploy/setup-ubuntu.sh
-chmod +x setup-ubuntu.sh
+wget https://raw.githubusercontent.com/stooky/magicker-page/master/deploy/ubuntu/setup-ubuntu.sh
 bash setup-ubuntu.sh
 ```
+
+**When prompted about running as root:**
+- You're logged in AS root (Vultr default) - this is okay
+- Type `y` to continue
 
 **After completion:**
 ```bash
 exit  # ⚠️ MUST LOG OUT AND BACK IN!
 ssh root@YOUR_VULTR_IP
-docker ps  # Should work without sudo
+docker ps  # Should work without errors
 ```
 
 ☐ Script completed successfully
+☐ Confirmed root warning (typed 'y')
 ☐ Logged out and back in
-☐ Docker works without sudo
+☐ Docker works
 
 ---
 

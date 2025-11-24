@@ -38,8 +38,30 @@ print_info() {
 
 # Check if running as root
 if [ "$EUID" -eq 0 ]; then
-    print_error "Please do not run as root (don't use sudo)"
-    exit 1
+    print_warning "Running as root user detected"
+    echo ""
+    echo "This script is designed to run as a regular user with sudo privileges."
+    echo "However, for fresh Vultr/cloud servers where you SSH as root, this is acceptable."
+    echo ""
+    echo "Are you:"
+    echo "  1) Logged in AS root (ssh root@server) - OKAY for testing"
+    echo "  2) Using sudo unnecessarily (sudo bash script.sh) - NOT recommended"
+    echo ""
+    read -p "Continue anyway? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo ""
+        print_info "For production deployments, create a dedicated user:"
+        echo "  adduser magicpage"
+        echo "  usermod -aG sudo magicpage"
+        echo "  su - magicpage"
+        echo ""
+        print_info "See deploy/ubuntu/INITIAL_SETUP.md for details"
+        exit 1
+    fi
+    echo ""
+    print_info "Continuing as root..."
+    echo ""
 fi
 
 # Check Ubuntu version
