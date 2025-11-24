@@ -493,7 +493,14 @@ useEffect(() => {
             ) : screenState === SCREEN_STATES.SCANNING ? (
                 <ScanningComponent screenshotUrl={screenshotUrl} messageItems={messageItems} />
             ) : screenState === SCREEN_STATES.CHAT_TEASE ? (
-                <Valhallah authToken={authToken} domain={domain} isReturning={isReturning} screenshotUrl={screenshotUrl} />
+                <Valhallah
+                    authToken={authToken}
+                    domain={domain}
+                    isReturning={isReturning}
+                    screenshotUrl={screenshotUrl}
+                    sessionID={sessionID}
+                    website={enteredWebsite}
+                />
             ) : (
                 <div className="centered-content">
                     <FormComponent onSubmit={handleSubmit} />

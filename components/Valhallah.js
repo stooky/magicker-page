@@ -16,14 +16,19 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
     const [chatReady, setChatReady] = useState(false);
     const [fadeIn, setFadeIn] = useState(false);
 
-    console.log('[VALHALLAH] Component mounted', {
-        hasAuthToken: !!authToken,
-        domain,
-        isReturning,
-        hasScreenshot: !!screenshotUrl,
-        sessionID,
-        website
-    });
+    console.log('');
+    console.log('========================================');
+    console.log('[VALHALLAH] COMPONENT MOUNTED');
+    console.log('========================================');
+    console.log('Props received:');
+    console.log('  authToken:', authToken ? authToken.substring(0, 20) + '...' : 'NOT PROVIDED');
+    console.log('  domain:', domain || 'NOT PROVIDED');
+    console.log('  website:', website || 'NOT PROVIDED');
+    console.log('  sessionID:', sessionID || 'NOT PROVIDED');
+    console.log('  isReturning:', isReturning);
+    console.log('  hasScreenshot:', !!screenshotUrl);
+    console.log('========================================');
+    console.log('');
 
     // Trigger fade-in animation on mount
     useEffect(() => {
@@ -81,42 +86,67 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
             console.log('[VALHALLAH] Inject script loaded');
             console.log('[VALHALLAH] Domain for KB search:', domain);
 
-            // BEFORE loading config script, set up userData interception
-            // The config script will call window.botpressWebChat.mergeConfig()
-            // We need to intercept that and add userData
+            // Store domain globally for reference
+            window.__BOTPRESS_USER_CONTEXT__ = {
+                domain: domain,
+                website: website,
+                sessionID: sessionID
+            };
 
-            const originalMergeConfig = window.botpressWebChat?.mergeConfig;
+            console.log('[VALHALLAH] ✅ Set window.__BOTPRESS_USER_CONTEXT__:', window.__BOTPRESS_USER_CONTEXT__);
 
-            if (window.botpressWebChat && typeof originalMergeConfig === 'function') {
-                window.botpressWebChat.mergeConfig = function(config) {
-                    console.log('[VALHALLAH] Intercepting mergeConfig, adding userData');
-
-                    // Add userData to the config
-                    const configWithUserData = {
-                        ...config,
-                        userData: {
-                            domain: domain,
-                            website: website,
-                            sessionID: sessionID
-                        }
-                    };
-
-                    console.log('[VALHALLAH] Config with userData:', configWithUserData);
-
-                    // Call the original mergeConfig with enhanced config
-                    return originalMergeConfig.call(this, configWithUserData);
-                };
-
-                console.log('[VALHALLAH] ✅ mergeConfig intercepted');
-            } else {
-                console.warn('[VALHALLAH] Could not intercept mergeConfig - will try alternative approach');
-            }
-
+            // Load the config script
             configScript.onload = () => {
                 console.log('[VALHALLAH] Config script loaded - webchat ready');
-                console.log('[VALHALLAH] Bot should have userData with domain:', domain);
+                console.log('[VALHALLAH] Will prepend domain to first message');
                 configLoaded = true;
                 checkBothLoaded();
+
+                // Intercept the first message to add domain prefix
+                let firstMessageSent = false;
+                setTimeout(() => {
+                    if (window.botpressWebChat && typeof window.botpressWebChat.sendEvent === 'function') {
+                        const originalSendEvent = window.botpressWebChat.sendEvent;
+
+                        window.botpressWebChat.sendEvent = function(event) {
+                            // Only modify the first text message
+                            if (!firstMessageSent && event.type === 'text') {
+                                console.log('');
+                                console.log('========================================');
+                                console.log('[VALHALLAH] 🎯 INTERCEPTING FIRST MESSAGE');
+                                console.log('========================================');
+                                console.log('Original event:', event);
+                                console.log('Original text:', event.payload?.text);
+                                console.log('Domain to inject:', domain);
+                                console.log('Website:', website);
+                                console.log('SessionID:', sessionID);
+
+                                firstMessageSent = true;
+                                const modifiedEvent = {
+                                    ...event,
+                                    payload: {
+                                        ...event.payload,
+                                        text: `[DOMAIN:${domain}] ${event.payload.text}`
+                                    }
+                                };
+
+                                console.log('Modified text:', modifiedEvent.payload.text);
+                                console.log('✅ Sending modified event to Botpress');
+                                console.log('========================================');
+                                console.log('');
+                                return originalSendEvent.call(this, modifiedEvent);
+                            }
+
+                            // Log all subsequent messages for debugging
+                            console.log('[VALHALLAH] Sending message (unmodified):', event.payload?.text);
+
+                            // All subsequent messages pass through unchanged
+                            return originalSendEvent.call(this, event);
+                        };
+
+                        console.log('[VALHALLAH] ✅ sendEvent intercepted');
+                    }
+                }, 1000);
             };
 
             configScript.onerror = (error) => {

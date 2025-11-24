@@ -74,33 +74,6 @@ export default async function handler(req, res) {
         console.log('Knowledge Base file created with ID:', fileId);
         logInfo('KB Created Successfully', { fileId, domain, sessionID, fileName });
 
-        // List all Knowledge Base files and dump to log
-        try {
-            logDebug('Fetching all KB files from Botpress', { botId });
-            const allFiles = await bp.listFiles({});
-
-            const filesList = allFiles.files?.map(f => ({
-                id: f.id,
-                key: f.key,
-                tags: f.tags,
-                index: f.index,
-                createdAt: f.createdAt
-            })) || [];
-
-            logInfo('All KB Files in Botpress', {
-                totalFiles: filesList.length,
-                files: filesList,
-                justCreatedFileId: fileId
-            });
-
-            console.log(`Total KB files in Botpress: ${filesList.length}`);
-            console.log('All KB files:', JSON.stringify(filesList, null, 2));
-        } catch (listError) {
-            logError('Failed to list KB files', listError);
-            console.error('Error listing KB files:', listError);
-            // Don't fail the whole request if listing fails
-        }
-
         // Return success with file info
         res.status(200).json({
             success: true,
