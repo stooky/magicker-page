@@ -137,14 +137,43 @@ npm run dev
 
 The application will be available at `http://localhost:3000`
 
+## 🚀 Deployment
+
+Magic Page supports two deployment options:
+
+### Ubuntu Server (Production) ✅ RECOMMENDED
+- **Best for:** Production deployments on Vultr, DigitalOcean, AWS, etc.
+- **Setup time:** 45-60 minutes with full automation
+- **Features:** PM2 process management, auto SSL, health monitoring, automated backups
+- **Cost:** $12-24/month
+- **[→ Ubuntu Deployment Guide](./deploy/ubuntu/README.md)**
+
+### Windows Self-Hosted (Development)
+- **Best for:** Local development, testing, Windows servers
+- **Setup time:** 30-45 minutes
+- **Features:** PowerShell automation, Docker Desktop integration
+- **Cost:** Free (use your own hardware)
+- **[→ Windows Deployment Guide](./deploy/windows/README.md)**
+
+**Not sure?** See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed comparison.
+
 ## 📖 Documentation
 
 Comprehensive documentation is available in the following guides:
 
+### Deployment Documentation
+- **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Choose your deployment platform
+- **[deploy/ubuntu/README.md](./deploy/ubuntu/README.md)** - Ubuntu server deployment
+- **[deploy/windows/README.md](./deploy/windows/README.md)** - Windows self-hosted setup
+- **[deploy/ENVIRONMENT_SETUP.md](./deploy/ENVIRONMENT_SETUP.md)** - Environment variables reference
+
+### Setup & Configuration
 - **[QUICKSTART.md](./QUICKSTART.md)** - Get up and running in 5 minutes
 - **[DATABASE_SETUP.md](./DATABASE_SETUP.md)** - Detailed database configuration
 - **[SCRAPER_SETUP.md](./SCRAPER_SETUP.md)** - Web scraping system setup
 - **[BOTPRESS_MIGRATION.md](./BOTPRESS_MIGRATION.md)** - Migration from Vendasta to Botpress
+
+### Testing & Implementation
 - **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** - QA workflows and testing procedures
 - **[IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md)** - Deployment checklist
 - **[README-BOTPRESS.md](./README-BOTPRESS.md)** - Botpress integration details
