@@ -22,10 +22,10 @@ How to pass domain context from Magic Page to Botpress using userData (cleaner t
 
 ### Step 1: Update Frontend (Valhallah.js)
 
-**Already done!** The component now uses `mergeConfig` to pass userData:
+**Already done!** The component now uses `init()` to pass userData:
 
 ```javascript
-window.botpressWebChat.mergeConfig({
+window.botpressWebChat.init({
     userData: {
         domain: domain,        // e.g., 'jobheating.com'
         website: website,      // e.g., 'https://jobheating.com'
@@ -33,6 +33,11 @@ window.botpressWebChat.mergeConfig({
     }
 });
 ```
+
+**IMPORTANT:** According to Botpress documentation:
+- Use `init()` NOT `mergeConfig()` for userData
+- Can only call `init()` with userData ONCE
+- userData must be a flat object with string values only
 
 **Logs to verify:**
 ```
@@ -153,13 +158,14 @@ Tags: {"domain":"jobheating.com"}
 
 **Check browser console for:**
 ```
-✅ userData configured in webchat
+✅ userData configured in webchat via init()
 ```
 
-If you don't see this, `mergeConfig` isn't working. Verify:
-- Botpress webchat version supports `mergeConfig`
-- Config script loaded before calling `mergeConfig`
+If you don't see this, `init()` isn't working. Verify:
+- Botpress webchat version supports `init()` with userData
+- Config script loaded before calling `init()`
 - No JavaScript errors
+- You're only calling `init()` ONCE (calling it multiple times won't work)
 
 ### If domain is not accessible in bot:
 
@@ -240,7 +246,7 @@ const modifiedEvent = {
 **New code (already updated):**
 ```javascript
 // USE THIS INSTEAD
-window.botpressWebChat.mergeConfig({
+window.botpressWebChat.init({
     userData: {
         domain: domain,
         website: website,

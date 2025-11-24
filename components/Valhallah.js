@@ -103,18 +103,33 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                 checkBothLoaded();
 
                 // Initialize Botpress webchat with userData
+                // IMPORTANT: According to Botpress docs:
+                // - Use init() NOT mergeConfig() for userData
+                // - Can only call init() with userData ONCE
+                // - userData must be flat object with string values
                 setTimeout(() => {
-                    if (window.botpressWebChat && typeof window.botpressWebChat.mergeConfig === 'function') {
+                    console.log('');
+                    console.log('========================================');
+                    console.log('[VALHALLAH] 🔍 DEBUGGING BOTPRESS WEBCHAT API');
+                    console.log('========================================');
+                    console.log('window.botpressWebChat exists:', !!window.botpressWebChat);
+                    console.log('Available methods:', window.botpressWebChat ? Object.keys(window.botpressWebChat) : 'N/A');
+                    console.log('typeof init:', typeof window.botpressWebChat?.init);
+                    console.log('========================================');
+                    console.log('');
+
+                    if (window.botpressWebChat && typeof window.botpressWebChat.init === 'function') {
                         console.log('');
                         console.log('========================================');
-                        console.log('[VALHALLAH] 🎯 INITIALIZING BOTPRESS WEBCHAT');
+                        console.log('[VALHALLAH] 🎯 INITIALIZING BOTPRESS WEBCHAT WITH USERDATA');
                         console.log('========================================');
                         console.log('Domain:', domain);
                         console.log('Website:', website);
                         console.log('SessionID:', sessionID);
 
-                        // Pass domain info through userData
-                        window.botpressWebChat.mergeConfig({
+                        // Pass domain info through userData using init()
+                        // NOTE: userData must be flat object with string values only
+                        window.botpressWebChat.init({
                             userData: {
                                 domain: domain,
                                 website: website,
@@ -122,11 +137,12 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                             }
                         });
 
-                        console.log('✅ userData configured in webchat');
+                        console.log('✅ userData configured in webchat via init()');
                         console.log('========================================');
                         console.log('');
                     } else {
-                        console.error('[VALHALLAH] ❌ window.botpressWebChat.mergeConfig not available');
+                        console.error('[VALHALLAH] ❌ window.botpressWebChat.init not available');
+                        console.log('[VALHALLAH] Available methods:', window.botpressWebChat ? Object.keys(window.botpressWebChat) : 'none');
                     }
                 }, 1000);
             };
