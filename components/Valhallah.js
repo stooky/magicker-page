@@ -6,12 +6,13 @@ import '../src/css/ai_agent.css';
 import '../src/css/weird_stuff.css';
 import '../src/css/style.css';
 
-export default function Valhallah({ authToken, domain, isReturning, screenshotUrl, sessionID, website }) {
+export default function Valhallah({ authToken, domain, isReturning, screenshotUrl, sessionID, website, kbFileId }) {
     // Store domain globally so bot can access it
     if (typeof window !== 'undefined') {
         window.__MAGIC_PAGE_DOMAIN__ = domain;
         window.__MAGIC_PAGE_WEBSITE__ = website;
         window.__MAGIC_PAGE_SESSION__ = sessionID;
+        window.__MAGIC_PAGE_KB_FILE_ID__ = kbFileId;
     }
     const [chatReady, setChatReady] = useState(false);
     const [fadeIn, setFadeIn] = useState(false);
@@ -25,6 +26,7 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
     console.log('  domain:', domain || 'NOT PROVIDED');
     console.log('  website:', website || 'NOT PROVIDED');
     console.log('  sessionID:', sessionID || 'NOT PROVIDED');
+    console.log('  kbFileId:', kbFileId || 'NOT PROVIDED');
     console.log('  isReturning:', isReturning);
     console.log('  hasScreenshot:', !!screenshotUrl);
     console.log('========================================');
@@ -90,7 +92,8 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
             window.__BOTPRESS_USER_CONTEXT__ = {
                 domain: domain,
                 website: website,
-                sessionID: sessionID
+                sessionID: sessionID,
+                kbFileId: kbFileId
             };
 
             console.log('[VALHALLAH] ✅ Set window.__BOTPRESS_USER_CONTEXT__:', window.__BOTPRESS_USER_CONTEXT__);
@@ -127,21 +130,25 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                         console.log('Domain:', domain);
                         console.log('Website:', website);
                         console.log('SessionID:', sessionID);
+                        console.log('KB File ID:', kbFileId);
                         console.log('Available methods:', Object.keys(window.botpressWebChat));
                         console.log('========================================');
 
                         try {
                             // Pass domain info through userData using init()
                             // NOTE: userData must be flat object with string values only
+                            // IMPORTANT: Passing kbFileId allows bot to use specific KB file directly
                             window.botpressWebChat.init({
                                 userData: {
                                     domain: domain,
                                     website: website,
-                                    sessionID: sessionID
+                                    sessionID: sessionID,
+                                    fileId: kbFileId || ''  // Pass KB file ID if available
                                 }
                             });
 
                             console.log('✅ userData configured in webchat via init()');
+                            console.log('   Including KB File ID:', kbFileId || 'not provided');
 
                             // HYBRID APPROACH: Also intercept messages and add domain to payload
                             // This provides a fallback since userData is unreliable in Botpress

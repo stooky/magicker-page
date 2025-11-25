@@ -500,6 +500,7 @@ useEffect(() => {
                     screenshotUrl={screenshotUrl}
                     sessionID={sessionID}
                     website={enteredWebsite}
+                    kbFileId={kbFileId}
                 />
             ) : (
                 <div className="centered-content">

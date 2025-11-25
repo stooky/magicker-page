@@ -59,36 +59,62 @@ const kbFileId = user.tags?.fileId || user.kbFileId || user.userData?.fileId || 
 console.log('KB File ID (if passed):', kbFileId);
 console.log('');
 
-// ===== SEARCH DOMAIN-SPECIFIC KB =====
-console.log('===== SEARCHING DOMAIN-SPECIFIC KB =====');
-console.log('Tags:', JSON.stringify({ domain: searchDomain }, null, 2));
-console.log('Query:', event.preview);
-console.log('');
-
+// ===== SEARCH KB (OPTIMIZED PATH) =====
 let kbResults;
-try {
-    kbResults = await client.searchFiles({
-        tags: {
-            domain: searchDomain
-        },
-        query: event.preview,
-        limit: 10
-    });
 
-    console.log('📊 Search results:');
-    console.log('  Total passages found:', kbResults.passages?.length || 0);
-
-    if (kbResults.passages && kbResults.passages.length > 0) {
-        console.log('  Passages details:');
-        kbResults.passages.forEach((passage, index) => {
-            console.log(`    [${index}] fileId: ${passage.fileId}, score: ${passage.score}, length: ${passage.content?.length || 0} chars`);
-        });
-    }
+if (kbFileId) {
+    // FAST PATH: Use specific file ID directly (no search needed!)
+    console.log('===== USING SPECIFIC KB FILE (OPTIMIZED) =====');
+    console.log('File ID:', kbFileId);
+    console.log('Query:', event.preview);
     console.log('');
-} catch (error) {
-    console.error('❌ Error searching domain-specific KB:', error);
-    kbResults = { passages: [] };
+
+    try {
+        // Search only this specific file
+        kbResults = await client.searchFiles({
+            fileId: kbFileId,  // Direct file lookup - faster!
+            query: event.preview,
+            limit: 10
+        });
+    } catch (error) {
+        console.error('❌ Error searching specific file:', error);
+        console.log('Falling back to domain tag search');
+        kbResults = null;  // Will trigger fallback below
+    }
 }
+
+// FALLBACK PATH: Search by domain tag if no fileId or fileId search failed
+if (!kbFileId || !kbResults) {
+    console.log('===== SEARCHING DOMAIN-SPECIFIC KB BY TAG =====');
+    console.log('Tags:', JSON.stringify({ domain: searchDomain }, null, 2));
+    console.log('Query:', event.preview);
+    console.log('');
+
+    try {
+        kbResults = await client.searchFiles({
+            tags: {
+                domain: searchDomain
+            },
+            query: event.preview,
+            limit: 10
+        });
+    } catch (error) {
+        console.error('❌ Error searching domain-specific KB by tag:', error);
+        kbResults = { passages: [] };
+    }
+}
+
+// Log search results (regardless of which path was used)
+console.log('📊 Search results:');
+console.log('  Total passages found:', kbResults?.passages?.length || 0);
+
+if (kbResults?.passages && kbResults.passages.length > 0) {
+    console.log('  Passages details:');
+    kbResults.passages.forEach((passage, index) => {
+        console.log(`    [${index}] fileId: ${passage.fileId}, score: ${passage.score}, length: ${passage.content?.length || 0} chars`);
+    });
+}
+console.log('');
 
 // ===== PROCESS RESULTS =====
 let kbContext = '';
