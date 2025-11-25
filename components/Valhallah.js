@@ -7,37 +7,25 @@ import '../src/css/weird_stuff.css';
 import '../src/css/style.css';
 import { DEBUG_BOTPRESS_REQUESTS, DEBUG_OPTIONS } from '../configuration/debugConfig';
 
-// Browser-side debug logging (mirrors server-side format)
-let browserSequence = 0;
-function logWebchatRequest(action, data) {
-    if (!DEBUG_BOTPRESS_REQUESTS || !DEBUG_OPTIONS.LOG_WEBCHAT_INIT) return;
-    browserSequence++;
-    const timestamp = new Date().toISOString();
-    console.log('');
-    console.log('%c╔══════════════════════════════════════════════════════════════', 'color: #3276EA');
-    console.log(`%c║ [${browserSequence}] WEBCHAT REQUEST - ${action}`, 'color: #3276EA; font-weight: bold');
-    console.log(`%c║ Time: ${timestamp}`, 'color: #3276EA');
-    console.log('%c╠══════════════════════════════════════════════════════════════', 'color: #3276EA');
-    console.log('%c║ Payload:', 'color: #3276EA');
-    console.log(data);
-    console.log('%c╚══════════════════════════════════════════════════════════════', 'color: #3276EA');
-    console.log('');
-}
+// Simple terminal-style logging
+const log = (msg, data) => {
+    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+    if (data !== undefined) {
+        console.log(`[${timestamp}] [VALHALLAH] ${msg}`, data);
+    } else {
+        console.log(`[${timestamp}] [VALHALLAH] ${msg}`);
+    }
+};
 
-function logWebchatEvent(eventName, data) {
+const logEvent = (eventName, data) => {
     if (!DEBUG_BOTPRESS_REQUESTS || !DEBUG_OPTIONS.LOG_WEBCHAT_EVENTS) return;
-    browserSequence++;
-    const timestamp = new Date().toISOString();
-    console.log('');
-    console.log('%c╔══════════════════════════════════════════════════════════════', 'color: #E76F00');
-    console.log(`%c║ [${browserSequence}] WEBCHAT EVENT - ${eventName}`, 'color: #E76F00; font-weight: bold');
-    console.log(`%c║ Time: ${timestamp}`, 'color: #E76F00');
-    console.log('%c╠══════════════════════════════════════════════════════════════', 'color: #E76F00');
-    console.log('%c║ Data:', 'color: #E76F00');
-    console.log(data);
-    console.log('%c╚══════════════════════════════════════════════════════════════', 'color: #E76F00');
-    console.log('');
-}
+    log(`EVENT: ${eventName}`, data);
+};
+
+const logRequest = (action, data) => {
+    if (!DEBUG_BOTPRESS_REQUESTS || !DEBUG_OPTIONS.LOG_WEBCHAT_INIT) return;
+    log(`REQUEST: ${action}`, data);
+};
 
 export default function Valhallah({ authToken, domain, isReturning, screenshotUrl, sessionID, website, kbFileId }) {
     // Prevent multiple initializations (React strict mode, HMR, etc.)
@@ -55,54 +43,43 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
 
     // Only log on first mount
     if (!hasInitialized.current) {
-        console.log('');
-        console.log('========================================');
-        console.log('[VALHALLAH] COMPONENT MOUNTED');
-        console.log('========================================');
-        console.log('Props received:');
-        console.log('  authToken:', authToken ? authToken.substring(0, 20) + '...' : 'NOT PROVIDED');
-        console.log('  domain:', domain || 'NOT PROVIDED');
-        console.log('  website:', website || 'NOT PROVIDED');
-        console.log('  sessionID:', sessionID || 'NOT PROVIDED');
-        console.log('  kbFileId:', kbFileId || 'NOT PROVIDED');
-        console.log('  isReturning:', isReturning);
-        console.log('  hasScreenshot:', !!screenshotUrl);
-        console.log('========================================');
-        console.log('');
+        log('--- COMPONENT MOUNTED ---');
+        log('Props:', {
+            authToken: authToken ? authToken.substring(0, 20) + '...' : 'NOT PROVIDED',
+            domain: domain || 'NOT PROVIDED',
+            website: website || 'NOT PROVIDED',
+            sessionID: sessionID || 'NOT PROVIDED',
+            kbFileId: kbFileId || 'NOT PROVIDED',
+            isReturning,
+            hasScreenshot: !!screenshotUrl
+        });
     }
 
     // Trigger fade-in animation on mount
     useEffect(() => {
-        console.log('[VALHALLAH] Fade-in animation starting');
         const timer = setTimeout(() => {
             setFadeIn(true);
-            console.log('[VALHALLAH] Fade-in complete');
         }, 100);
         return () => clearTimeout(timer);
     }, []);
 
     // Load Botpress Cloud webchat
-    // CRITICAL: We call init() ourselves WITH userData instead of loading the config script
-    // The config script calls init() without userData, which prevents us from setting it later
     useEffect(() => {
-        // Prevent multiple initializations
         if (hasInitialized.current) {
-            console.log('[VALHALLAH] Already initialized, skipping');
+            log('Already initialized, skipping');
             return;
         }
         hasInitialized.current = true;
 
-        console.log('[VALHALLAH] Webchat loading useEffect triggered', { domain, sessionID, website, kbFileId });
+        log('Loading webchat...', { domain, sessionID, website, kbFileId });
 
         // Check if webchat already exists
         const existingScript = document.querySelector('script[src*="cdn.botpress.cloud/webchat"]');
         if (existingScript && window.botpress?.initialized) {
-            console.log('[VALHALLAH] Botpress already initialized');
+            log('Botpress already initialized');
             setChatReady(true);
             return;
         }
-
-        console.log('[VALHALLAH] Loading Botpress webchat (manual init with userData)');
 
         // Store context globally for reference
         window.__BOTPRESS_USER_CONTEXT__ = {
@@ -117,7 +94,7 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
         injectScript.src = 'https://cdn.botpress.cloud/webchat/v2.2/inject.js';
 
         injectScript.onload = () => {
-            console.log('[VALHALLAH] ✅ Inject script loaded');
+            log('Inject script loaded');
 
             // Wait for window.botpress to be available
             const checkBotpress = setInterval(() => {
@@ -125,58 +102,91 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                     clearInterval(checkBotpress);
 
                     const bp = window.botpress;
-                    console.log('[VALHALLAH] ✅ window.botpress available');
-                    console.log('[VALHALLAH] Available methods:', Object.keys(bp));
+                    log('window.botpress available');
+                    log('Available methods:', Object.keys(bp));
 
-                    // Set up event listeners with debug logging
-                    bp.on('webchat:ready', () => {
-                        console.log('[VALHALLAH] 📢 webchat:ready event fired');
-                        logWebchatEvent('webchat:ready', { status: 'ready' });
-                    });
-
+                    // Set up event listeners
                     bp.on('webchat:opened', () => {
-                        console.log('[VALHALLAH] 💬 Webchat opened');
-                        logWebchatEvent('webchat:opened', { status: 'opened' });
+                        log('Webchat opened');
+                        logEvent('webchat:opened', { status: 'opened' });
                     });
 
                     bp.on('webchat:closed', () => {
-                        console.log('[VALHALLAH] 💬 Webchat closed');
-                        logWebchatEvent('webchat:closed', { status: 'closed' });
+                        log('Webchat closed');
+                        logEvent('webchat:closed', { status: 'closed' });
                     });
 
                     bp.on('message', (msg) => {
-                        console.log('[VALHALLAH] 📨 Message:', msg?.payload?.text || msg);
-                        logWebchatEvent('message', msg);
+                        log('Message received:', msg?.payload?.text || msg);
+                        logEvent('message', msg);
                     });
 
                     bp.on('messageSent', (msg) => {
-                        logWebchatEvent('messageSent', msg);
+                        logEvent('messageSent', msg);
                     });
 
                     bp.on('error', (err) => {
-                        console.error('[VALHALLAH] ❌ Error:', err);
-                        logWebchatEvent('error', err);
+                        log('ERROR:', err);
+                        logEvent('error', err);
                     });
 
-                    // CRITICAL: Call init() ourselves WITH userData
-                    // This is the ONLY way to ensure userData is set
-                    console.log('');
-                    console.log('========================================');
-                    console.log('[VALHALLAH] 🎯 CALLING init() WITH userData');
-                    console.log('========================================');
-                    console.log('  domain:', domain);
-                    console.log('  website:', website);
-                    console.log('  sessionID:', sessionID);
-                    console.log('  fileId:', kbFileId || '(none)');
-                    console.log('========================================');
+                    // Store user data to pass after initialization
+                    const userDataToSet = {
+                        domain: domain,
+                        website: website,
+                        sessionID: sessionID,
+                        fileId: kbFileId || ''
+                    };
 
-                    // Build the full init config object
+                    log('--- INIT APPROACH: init() then updateUser() ---');
+                    log('userData to set:', userDataToSet);
+
+                    // Listen for webchat:ready
+                    bp.on('webchat:ready', async () => {
+                        log('webchat:ready event fired');
+                        log('Calling updateUser()...');
+
+                        logEvent('webchat:ready', { status: 'ready' });
+
+                        try {
+                            await bp.updateUser({ data: userDataToSet });
+
+                            log('updateUser() SUCCESS');
+                            log('Data sent:', userDataToSet);
+                            logEvent('updateUser:success', { data: userDataToSet });
+
+                            // Verify userData
+                            log('--- VERIFYING USER DATA ---');
+                            try {
+                                const user = await bp.getUser();
+                                const retrievedData = user?.data || {};
+
+                                log('getUser() result:');
+                                log('  userId:', user?.id || 'N/A');
+                                log('  domain:', retrievedData.domain || '(not set)');
+                                log('  website:', retrievedData.website || '(not set)');
+                                log('  sessionID:', retrievedData.sessionID || '(not set)');
+                                log('  fileId:', retrievedData.fileId || '(not set)');
+                                log('Full user object:', user);
+
+                                logEvent('getUser:success', { user, retrievedData });
+
+                            } catch (getUserError) {
+                                log('WARN: getUser() not available yet');
+                                log('Expected userData:', userDataToSet);
+                                logEvent('getUser:deferred', { reason: 'chat not opened', expectedData: userDataToSet });
+                            }
+
+                        } catch (updateError) {
+                            log('ERROR: updateUser() failed:', updateError);
+                            logEvent('updateUser:error', { error: updateError });
+                        }
+                    });
+
+                    // Build init config
                     const initConfig = {
-                        // Bot configuration (from Botpress dashboard)
                         botId: '3809961f-f802-40a3-aa5a-9eb91c0dedbb',
                         clientId: 'f4011114-6902-416b-b164-12a8df8d0f3d',
-
-                        // Styling configuration
                         configuration: {
                             botName: 'Custom Assistant',
                             botDescription: 'I can assist you with your specific custom requests and provide tailored information.',
@@ -185,32 +195,67 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                             themeMode: 'light',
                             fontFamily: 'inter',
                             radius: 1
-                        },
-
-                        // THE CRITICAL PART: userData with domain info
-                        userData: {
-                            domain: domain,
-                            website: website,
-                            sessionID: sessionID,
-                            fileId: kbFileId || ''
                         }
                     };
 
-                    // Debug log the full init config
-                    logWebchatRequest('bp.init()', initConfig);
+                    logRequest('bp.init()', initConfig);
 
                     try {
                         bp.init(initConfig);
-
-                        console.log('[VALHALLAH] ✅ init() called successfully with userData!');
-                        logWebchatEvent('init:success', {
-                            status: 'success',
-                            userData: initConfig.userData
-                        });
+                        log('init() called');
+                        logEvent('init:success', { status: 'success' });
                         setChatReady(true);
 
+                        // Auto-open and send first message
+                        setTimeout(async () => {
+                            log('--- AUTO-OPEN SEQUENCE ---');
+
+                            try {
+                                // Try to start new conversation
+                                if (typeof bp.newConversation === 'function') {
+                                    log('Starting new conversation...');
+                                    await bp.newConversation();
+                                    log('New conversation started');
+                                } else {
+                                    log('newConversation not available, methods:', Object.keys(bp));
+                                }
+
+                                // Open webchat
+                                await bp.open();
+                                log('Webchat opened');
+
+                                // Send greeting after delay
+                                setTimeout(async () => {
+                                    try {
+                                        const greeting = `Hi! I'd like to learn more about ${domain || 'your services'}.`;
+                                        log('Sending auto-greeting:', greeting);
+
+                                        await bp.sendMessage(greeting);
+                                        log('Auto-greeting sent');
+                                        logEvent('auto-greeting:sent', { message: greeting });
+
+                                        // Verify userData post-message
+                                        try {
+                                            const user = await bp.getUser();
+                                            log('--- POST-MESSAGE USER DATA ---');
+                                            log('  userId:', user?.id || 'N/A');
+                                            log('  userData:', user?.data || '(no data)');
+                                        } catch (e) {
+                                            log('getUser() still not available after message');
+                                        }
+
+                                    } catch (sendError) {
+                                        log('ERROR: Failed to send auto-greeting:', sendError);
+                                    }
+                                }, 1500);
+
+                            } catch (openError) {
+                                log('ERROR: Failed to auto-open webchat:', openError);
+                            }
+                        }, 2000);
+
                     } catch (error) {
-                        console.error('[VALHALLAH] ❌ init() failed:', error);
+                        log('ERROR: init() failed:', error);
                     }
                 }
             }, 100);
@@ -219,16 +264,16 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
             setTimeout(() => {
                 clearInterval(checkBotpress);
                 if (!window.botpress) {
-                    console.error('[VALHALLAH] ❌ window.botpress not available after 10s');
+                    log('ERROR: window.botpress not available after 10s');
                 }
             }, 10000);
         };
 
         injectScript.onerror = (error) => {
-            console.error('[VALHALLAH] ❌ FAILED TO LOAD inject.js:', error);
+            log('ERROR: Failed to load inject.js:', error);
         };
 
-        console.log('[VALHALLAH] Appending inject script to document');
+        log('Appending inject script');
         document.body.appendChild(injectScript);
 
     }, [domain, sessionID, website, kbFileId]);
