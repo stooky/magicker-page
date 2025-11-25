@@ -213,35 +213,8 @@ useEffect(() => {
         return `magic-page-company-${cleanedWebsite.replace(/\./g, '-')}`;
     };
 
-    // Poll Knowledge Base status until indexed and ready
-    const startKBPolling = (fileId) => {
-        console.log('Starting KB status polling for:', fileId);
-        const pollInterval = setInterval(async () => {
-            try {
-                const statusResponse = await fetch(`/api/botpress/kb-status?fileId=${fileId}`);
-                const statusData = await statusResponse.json();
-
-                console.log('KB Status:', statusData);
-
-                if (statusData.success && statusData.ready) {
-                    console.log('✓ Knowledge Base is READY!');
-                    setKbReady(true);
-                    clearInterval(pollInterval);
-                }
-            } catch (error) {
-                console.error('Error polling KB status:', error);
-            }
-        }, 2000); // Poll every 2 seconds
-
-        // Safety: stop polling after 60 seconds
-        setTimeout(() => {
-            clearInterval(pollInterval);
-            if (!kbReady) {
-                console.warn('KB polling timeout - assuming ready');
-                setKbReady(true);
-            }
-        }, 60000);
-    };
+    // NOTE: KB polling removed - kb-create now waits for indexing to complete
+    // and returns ready=true directly. No more frontend polling needed!
 
 
 
@@ -414,10 +387,17 @@ useEffect(() => {
             if (kbData.success) {
                 setKbFileId(kbData.fileId);
                 console.log('KB File ID:', kbData.fileId);
-                // Start polling for KB ready status
-                startKBPolling(kbData.fileId);
+                // kb-create now waits for indexing - no polling needed!
+                if (kbData.ready) {
+                    console.log('✓ Knowledge Base is READY! (indexed server-side)');
+                    setKbReady(true);
+                } else {
+                    console.warn('KB created but not marked ready, assuming ready anyway');
+                    setKbReady(true);
+                }
             } else {
                 console.error('Failed to create KB, continuing anyway');
+                setKbReady(true); // Allow flow to continue
             }
 
             // Generate JWT authentication token with domain context

@@ -234,6 +234,29 @@ docker logs -f botpress
 
 ## Troubleshooting
 
+### Enable Debug Logging
+
+For detailed request/response logging, edit `configuration/debugConfig.js`:
+
+```javascript
+export const DEBUG_BOTPRESS_REQUESTS = true;  // Enable verbose logging
+```
+
+This logs all Botpress API calls in chronological order:
+- **Server console**: KB uploads, JWT generation, session creation
+- **Browser console**: Webchat init(), events, messages
+
+Each log entry shows timestamp, sequence number, and full payload:
+```
+╔══════════════════════════════════════════════════════════════
+║ [1] BOTPRESS REQUEST - KB-CREATE
+║ Time: 2025-11-25T14:30:00.000Z
+║ Action: Upload file to Botpress
+╠══════════════════════════════════════════════════════════════
+║ Payload: { ... }
+╚══════════════════════════════════════════════════════════════
+```
+
 ### "Botpress not configured" error
 - Check `BOTPRESS_BOT_ID` in `.env.local`
 - Restart dev server: `npm run dev`
@@ -242,11 +265,17 @@ docker logs -f botpress
 - Verify Botpress is running: `docker ps`
 - Check bot is published in Studio
 - Open browser console (F12) for errors
+- Enable debug logging to see exact init() payload
 
 ### Database connection failed
 - Verify PostgreSQL is running
 - Check `DB_PASSWORD` in `.env.local`
 - Test connection: `psql -U postgres -d mp`
+
+### userData not reaching bot workflow
+- Enable debug logging to verify userData in init() call
+- Check Botpress Studio logs for domain resolution
+- See [BOTPRESS-INTEGRATION-ANALYSIS.md](./docs/BOTPRESS-INTEGRATION-ANALYSIS.md) for detailed troubleshooting
 
 ### Port conflicts
 If ports 3000, 3001, or 5432 are in use:

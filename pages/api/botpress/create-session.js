@@ -2,6 +2,8 @@
  * API endpoint to create Botpress conversation session
  * Creates a real session via Botpress Cloud API
  */
+import { DEBUG_BOTPRESS_REQUESTS, DEBUG_OPTIONS, logBotpressRequest, logBotpressResponse } from '../../../configuration/debugConfig';
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -29,30 +31,54 @@ export default async function handler(req, res) {
         console.log('Website:', website);
         console.log('KB File ID:', fileId);
 
-        const conversationResponse = await fetch(`https://api.botpress.cloud/v1/chat/conversations`, {
+        const conversationUrl = 'https://api.botpress.cloud/v1/chat/conversations';
+        const conversationHeaders = {
+            'Authorization': `Bearer ${token}`,
+            'x-workspace-id': workspaceId,
+            'x-bot-id': botId,
+            'Content-Type': 'application/json'
+        };
+        const conversationBody = {
+            channel: 'webchat',
+            integrationAlias: 'webchat',
+            tags: {
+                sessionID: sessionID,
+                website: website,
+                company: company || 'Unknown Company',
+                email: email || 'not-provided',
+                kbFileId: fileId || 'none'
+            }
+        };
+
+        // Debug log the request
+        if (DEBUG_BOTPRESS_REQUESTS && DEBUG_OPTIONS.LOG_SESSION_REQUESTS) {
+            logBotpressRequest('SESSION', 'Create conversation', {
+                url: conversationUrl,
+                method: 'POST',
+                headers: { ...conversationHeaders, Authorization: '[REDACTED]' },
+                body: conversationBody
+            });
+        }
+
+        const sessionStartTime = Date.now();
+
+        const conversationResponse = await fetch(conversationUrl, {
             method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'x-workspace-id': workspaceId,
-                'x-bot-id': botId,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                channel: 'webchat',
-                integrationAlias: 'webchat',
-                tags: {
-                    sessionID: sessionID,
-                    website: website,
-                    company: company || 'Unknown Company',
-                    email: email || 'not-provided',
-                    kbFileId: fileId || 'none'
-                }
-            })
+            headers: conversationHeaders,
+            body: JSON.stringify(conversationBody)
         });
 
         if (!conversationResponse.ok) {
             const errorData = await conversationResponse.json();
             console.error('Failed to create conversation:', errorData);
+
+            if (DEBUG_BOTPRESS_REQUESTS && DEBUG_OPTIONS.LOG_SESSION_REQUESTS) {
+                logBotpressResponse('SESSION', 'Create conversation FAILED', {
+                    status: conversationResponse.status,
+                    error: errorData
+                }, Date.now() - sessionStartTime);
+            }
+
             return res.status(conversationResponse.status).json({
                 success: false,
                 error: 'Failed to create Botpress session',
@@ -61,6 +87,12 @@ export default async function handler(req, res) {
         }
 
         const conversationData = await conversationResponse.json();
+
+        // Debug log the response
+        if (DEBUG_BOTPRESS_REQUESTS && DEBUG_OPTIONS.LOG_SESSION_REQUESTS) {
+            logBotpressResponse('SESSION', 'Conversation created', conversationData, Date.now() - sessionStartTime);
+        }
+
         console.log('Botpress conversation created:', conversationData.id);
 
         res.status(200).json({

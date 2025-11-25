@@ -1,12 +1,48 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import '../src/css/main.css';
 import '../src/css/mockbox.css';
 import '../src/css/thumbnail.css';
 import '../src/css/ai_agent.css';
 import '../src/css/weird_stuff.css';
 import '../src/css/style.css';
+import { DEBUG_BOTPRESS_REQUESTS, DEBUG_OPTIONS } from '../configuration/debugConfig';
+
+// Browser-side debug logging (mirrors server-side format)
+let browserSequence = 0;
+function logWebchatRequest(action, data) {
+    if (!DEBUG_BOTPRESS_REQUESTS || !DEBUG_OPTIONS.LOG_WEBCHAT_INIT) return;
+    browserSequence++;
+    const timestamp = new Date().toISOString();
+    console.log('');
+    console.log('%c╔══════════════════════════════════════════════════════════════', 'color: #3276EA');
+    console.log(`%c║ [${browserSequence}] WEBCHAT REQUEST - ${action}`, 'color: #3276EA; font-weight: bold');
+    console.log(`%c║ Time: ${timestamp}`, 'color: #3276EA');
+    console.log('%c╠══════════════════════════════════════════════════════════════', 'color: #3276EA');
+    console.log('%c║ Payload:', 'color: #3276EA');
+    console.log(data);
+    console.log('%c╚══════════════════════════════════════════════════════════════', 'color: #3276EA');
+    console.log('');
+}
+
+function logWebchatEvent(eventName, data) {
+    if (!DEBUG_BOTPRESS_REQUESTS || !DEBUG_OPTIONS.LOG_WEBCHAT_EVENTS) return;
+    browserSequence++;
+    const timestamp = new Date().toISOString();
+    console.log('');
+    console.log('%c╔══════════════════════════════════════════════════════════════', 'color: #E76F00');
+    console.log(`%c║ [${browserSequence}] WEBCHAT EVENT - ${eventName}`, 'color: #E76F00; font-weight: bold');
+    console.log(`%c║ Time: ${timestamp}`, 'color: #E76F00');
+    console.log('%c╠══════════════════════════════════════════════════════════════', 'color: #E76F00');
+    console.log('%c║ Data:', 'color: #E76F00');
+    console.log(data);
+    console.log('%c╚══════════════════════════════════════════════════════════════', 'color: #E76F00');
+    console.log('');
+}
 
 export default function Valhallah({ authToken, domain, isReturning, screenshotUrl, sessionID, website, kbFileId }) {
+    // Prevent multiple initializations (React strict mode, HMR, etc.)
+    const hasInitialized = useRef(false);
+
     // Store domain globally so bot can access it
     if (typeof window !== 'undefined') {
         window.__MAGIC_PAGE_DOMAIN__ = domain;
@@ -17,20 +53,23 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
     const [chatReady, setChatReady] = useState(false);
     const [fadeIn, setFadeIn] = useState(false);
 
-    console.log('');
-    console.log('========================================');
-    console.log('[VALHALLAH] COMPONENT MOUNTED');
-    console.log('========================================');
-    console.log('Props received:');
-    console.log('  authToken:', authToken ? authToken.substring(0, 20) + '...' : 'NOT PROVIDED');
-    console.log('  domain:', domain || 'NOT PROVIDED');
-    console.log('  website:', website || 'NOT PROVIDED');
-    console.log('  sessionID:', sessionID || 'NOT PROVIDED');
-    console.log('  kbFileId:', kbFileId || 'NOT PROVIDED');
-    console.log('  isReturning:', isReturning);
-    console.log('  hasScreenshot:', !!screenshotUrl);
-    console.log('========================================');
-    console.log('');
+    // Only log on first mount
+    if (!hasInitialized.current) {
+        console.log('');
+        console.log('========================================');
+        console.log('[VALHALLAH] COMPONENT MOUNTED');
+        console.log('========================================');
+        console.log('Props received:');
+        console.log('  authToken:', authToken ? authToken.substring(0, 20) + '...' : 'NOT PROVIDED');
+        console.log('  domain:', domain || 'NOT PROVIDED');
+        console.log('  website:', website || 'NOT PROVIDED');
+        console.log('  sessionID:', sessionID || 'NOT PROVIDED');
+        console.log('  kbFileId:', kbFileId || 'NOT PROVIDED');
+        console.log('  isReturning:', isReturning);
+        console.log('  hasScreenshot:', !!screenshotUrl);
+        console.log('========================================');
+        console.log('');
+    }
 
     // Trigger fade-in animation on mount
     useEffect(() => {
@@ -42,160 +81,157 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
         return () => clearTimeout(timer);
     }, []);
 
-    // Load Botpress Cloud webchat - v3.4 official approach
+    // Load Botpress Cloud webchat
+    // CRITICAL: We call init() ourselves WITH userData instead of loading the config script
+    // The config script calls init() without userData, which prevents us from setting it later
     useEffect(() => {
-        console.log('[VALHALLAH] Webchat loading useEffect triggered', { domain, sessionID, website });
+        // Prevent multiple initializations
+        if (hasInitialized.current) {
+            console.log('[VALHALLAH] Already initialized, skipping');
+            return;
+        }
+        hasInitialized.current = true;
 
-        // Check if scripts already exist
-        const existingInjectScript = document.querySelector('script[src*="webchat/v3.4/inject.js"]');
-        const existingConfigScript = document.querySelector('script[src*="files.bpcontent.cloud"]');
+        console.log('[VALHALLAH] Webchat loading useEffect triggered', { domain, sessionID, website, kbFileId });
 
-        if (existingInjectScript && existingConfigScript) {
-            console.log('[VALHALLAH] Botpress scripts already loaded');
+        // Check if webchat already exists
+        const existingScript = document.querySelector('script[src*="cdn.botpress.cloud/webchat"]');
+        if (existingScript && window.botpress?.initialized) {
+            console.log('[VALHALLAH] Botpress already initialized');
             setChatReady(true);
-
-            // Try to send userData if webchat is ready
-            setTimeout(() => {
-                if (window.botpressWebChat) {
-                    console.log('[VALHALLAH] Sending userData to existing webchat');
-                    sendUserDataToWebchat();
-                }
-            }, 500);
             return;
         }
 
-        console.log('[VALHALLAH] Loading Botpress v3.4 scripts');
+        console.log('[VALHALLAH] Loading Botpress webchat (manual init with userData)');
 
-        // Load the inject script FIRST
-        const injectScript = document.createElement('script');
-        injectScript.src = 'https://cdn.botpress.cloud/webchat/v3.4/inject.js';
-
-        // Load the config script AFTER inject loads
-        const configScript = document.createElement('script');
-        configScript.src = 'https://files.bpcontent.cloud/2025/08/29/02/20250829022146-W5NQM7TZ.js';
-        configScript.defer = true;
-
-        let configLoaded = false;
-
-        const checkBothLoaded = () => {
-            if (configLoaded) {
-                console.log('[VALHALLAH] Both scripts loaded successfully');
-                setChatReady(true);
-            }
+        // Store context globally for reference
+        window.__BOTPRESS_USER_CONTEXT__ = {
+            domain: domain,
+            website: website,
+            sessionID: sessionID,
+            fileId: kbFileId || ''
         };
 
+        // Load ONLY the inject script - NOT the config script!
+        const injectScript = document.createElement('script');
+        injectScript.src = 'https://cdn.botpress.cloud/webchat/v2.2/inject.js';
+
         injectScript.onload = () => {
-            console.log('[VALHALLAH] Inject script loaded');
-            console.log('[VALHALLAH] Domain for KB search:', domain);
+            console.log('[VALHALLAH] ✅ Inject script loaded');
 
-            // Store domain globally for reference
-            window.__BOTPRESS_USER_CONTEXT__ = {
-                domain: domain,
-                website: website,
-                sessionID: sessionID,
-                kbFileId: kbFileId
-            };
+            // Wait for window.botpress to be available
+            const checkBotpress = setInterval(() => {
+                if (window.botpress) {
+                    clearInterval(checkBotpress);
 
-            console.log('[VALHALLAH] ✅ Set window.__BOTPRESS_USER_CONTEXT__:', window.__BOTPRESS_USER_CONTEXT__);
+                    const bp = window.botpress;
+                    console.log('[VALHALLAH] ✅ window.botpress available');
+                    console.log('[VALHALLAH] Available methods:', Object.keys(bp));
 
-            // Load the config script
-            configScript.onload = () => {
-                console.log('[VALHALLAH] Config script loaded - webchat ready');
-                console.log('[VALHALLAH] Waiting for webchat to initialize...');
-                configLoaded = true;
-                checkBothLoaded();
+                    // Set up event listeners with debug logging
+                    bp.on('webchat:ready', () => {
+                        console.log('[VALHALLAH] 📢 webchat:ready event fired');
+                        logWebchatEvent('webchat:ready', { status: 'ready' });
+                    });
 
-                // Initialize Botpress webchat with userData
-                // IMPORTANT: According to Botpress docs:
-                // - Use init() NOT mergeConfig() for userData
-                // - Can only call init() with userData ONCE
-                // - userData must be flat object with string values
+                    bp.on('webchat:opened', () => {
+                        console.log('[VALHALLAH] 💬 Webchat opened');
+                        logWebchatEvent('webchat:opened', { status: 'opened' });
+                    });
 
-                // Poll for webchat availability (it takes time to initialize)
-                let attempts = 0;
-                const maxAttempts = 20; // Try for 10 seconds (20 * 500ms)
+                    bp.on('webchat:closed', () => {
+                        console.log('[VALHALLAH] 💬 Webchat closed');
+                        logWebchatEvent('webchat:closed', { status: 'closed' });
+                    });
 
-                const pollForWebchat = setInterval(() => {
-                    attempts++;
+                    bp.on('message', (msg) => {
+                        console.log('[VALHALLAH] 📨 Message:', msg?.payload?.text || msg);
+                        logWebchatEvent('message', msg);
+                    });
 
-                    console.log(`[VALHALLAH] Polling attempt ${attempts}/${maxAttempts} - window.botpressWebChat exists:`, !!window.botpressWebChat);
+                    bp.on('messageSent', (msg) => {
+                        logWebchatEvent('messageSent', msg);
+                    });
 
-                    if (window.botpressWebChat && typeof window.botpressWebChat.init === 'function') {
-                        clearInterval(pollForWebchat);
+                    bp.on('error', (err) => {
+                        console.error('[VALHALLAH] ❌ Error:', err);
+                        logWebchatEvent('error', err);
+                    });
 
-                        console.log('');
-                        console.log('========================================');
-                        console.log('[VALHALLAH] 🎯 INITIALIZING BOTPRESS WEBCHAT WITH USERDATA');
-                        console.log('========================================');
-                        console.log('Domain:', domain);
-                        console.log('Website:', website);
-                        console.log('SessionID:', sessionID);
-                        console.log('KB File ID:', kbFileId);
-                        console.log('Available methods:', Object.keys(window.botpressWebChat));
-                        console.log('========================================');
+                    // CRITICAL: Call init() ourselves WITH userData
+                    // This is the ONLY way to ensure userData is set
+                    console.log('');
+                    console.log('========================================');
+                    console.log('[VALHALLAH] 🎯 CALLING init() WITH userData');
+                    console.log('========================================');
+                    console.log('  domain:', domain);
+                    console.log('  website:', website);
+                    console.log('  sessionID:', sessionID);
+                    console.log('  fileId:', kbFileId || '(none)');
+                    console.log('========================================');
 
-                        try {
-                            // Pass domain info through userData using init()
-                            // NOTE: userData must be flat object with string values only
-                            // IMPORTANT: Passing kbFileId allows bot to use specific KB file directly
-                            window.botpressWebChat.init({
-                                userData: {
-                                    domain: domain,
-                                    website: website,
-                                    sessionID: sessionID,
-                                    fileId: kbFileId || ''  // Pass KB file ID if available
-                                }
-                            });
+                    // Build the full init config object
+                    const initConfig = {
+                        // Bot configuration (from Botpress dashboard)
+                        botId: '3809961f-f802-40a3-aa5a-9eb91c0dedbb',
+                        clientId: 'f4011114-6902-416b-b164-12a8df8d0f3d',
 
-                            console.log('✅ userData configured in webchat via init()');
-                            console.log('   Including KB File ID:', kbFileId || 'not provided');
+                        // Styling configuration
+                        configuration: {
+                            botName: 'Custom Assistant',
+                            botDescription: 'I can assist you with your specific custom requests and provide tailored information.',
+                            color: '#3276EA',
+                            variant: 'solid',
+                            themeMode: 'light',
+                            fontFamily: 'inter',
+                            radius: 1
+                        },
 
-                            // HYBRID APPROACH: Also intercept messages and add domain to payload
-                            // This provides a fallback since userData is unreliable in Botpress
-                            if (typeof window.botpressWebChat.onEvent === 'function') {
-                                console.log('✅ Setting up message interceptor as fallback');
-
-                                window.botpressWebChat.onEvent((event) => {
-                                    if (event.type === 'MESSAGE.SENT') {
-                                        console.log('[VALHALLAH] Message sent - domain context:', domain);
-                                        // Domain will be in user object from init(), but also available in window context
-                                    }
-                                }, ['MESSAGE.SENT']);
-                            }
-
-                            console.log('========================================');
-                            console.log('');
-                        } catch (error) {
-                            console.error('[VALHALLAH] ❌ Error calling init():', error);
+                        // THE CRITICAL PART: userData with domain info
+                        userData: {
+                            domain: domain,
+                            website: website,
+                            sessionID: sessionID,
+                            fileId: kbFileId || ''
                         }
-                    } else if (attempts >= maxAttempts) {
-                        clearInterval(pollForWebchat);
-                        console.error('[VALHALLAH] ❌ window.botpressWebChat.init not available after', maxAttempts, 'attempts');
-                        console.log('[VALHALLAH] window.botpressWebChat exists:', !!window.botpressWebChat);
-                        console.log('[VALHALLAH] Available methods:', window.botpressWebChat ? Object.keys(window.botpressWebChat) : 'none');
+                    };
+
+                    // Debug log the full init config
+                    logWebchatRequest('bp.init()', initConfig);
+
+                    try {
+                        bp.init(initConfig);
+
+                        console.log('[VALHALLAH] ✅ init() called successfully with userData!');
+                        logWebchatEvent('init:success', {
+                            status: 'success',
+                            userData: initConfig.userData
+                        });
+                        setChatReady(true);
+
+                    } catch (error) {
+                        console.error('[VALHALLAH] ❌ init() failed:', error);
                     }
-                }, 500); // Check every 500ms
-            };
+                }
+            }, 100);
 
-            configScript.onerror = (error) => {
-                console.error('[VALHALLAH] Failed to load config script:', error);
-            };
-
-            document.body.appendChild(configScript);
+            // Timeout after 10 seconds
+            setTimeout(() => {
+                clearInterval(checkBotpress);
+                if (!window.botpress) {
+                    console.error('[VALHALLAH] ❌ window.botpress not available after 10s');
+                }
+            }, 10000);
         };
 
         injectScript.onerror = (error) => {
-            console.error('[VALHALLAH] Failed to load inject script:', error);
+            console.error('[VALHALLAH] ❌ FAILED TO LOAD inject.js:', error);
         };
 
-        console.log('[VALHALLAH] Appending Botpress v3.4 inject script to document body');
+        console.log('[VALHALLAH] Appending inject script to document');
         document.body.appendChild(injectScript);
 
-        // Cleanup function
-        return () => {
-            console.log('[VALHALLAH] Component unmounting - scripts will persist');
-        };
-    }, [sessionID, website, domain]);
+    }, [domain, sessionID, website, kbFileId]);
 
     const backgroundStyle = screenshotUrl ? {
         backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url(${screenshotUrl})`,

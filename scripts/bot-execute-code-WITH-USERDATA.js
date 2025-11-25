@@ -1,8 +1,15 @@
 // ========================================
 // BOTPRESS EXECUTE CODE - Dynamic KB Search with userData
 // ========================================
-// This version uses userData passed from webchat initialization
-// to search for domain-specific knowledge base files
+// UPDATED: Now checks workflow.userDataResult from "Get User Data" action FIRST
+// This is the output variable you configured in Botpress Studio
+//
+// Resolution order:
+// 1. workflow.userDataResult (from "Get User Data" action output)
+// 2. user.data (v2 API)
+// 3. user.tags (legacy/init userData)
+// 4. event/conversation fallbacks
+// 5. DEFAULT_DOMAIN
 
 // ===== CONFIGURATION =====
 const USE_HARDCODED_DOMAIN = false; // Set to TRUE for testing in Botpress Studio
@@ -18,46 +25,73 @@ console.log('');
 
 // ===== DEBUG: LOG ALL AVAILABLE DATA =====
 console.log('===== ALL AVAILABLE DATA =====');
+console.log('workflow.userDataResult:', JSON.stringify(workflow.userDataResult, null, 2));
 console.log('user:', JSON.stringify(user, null, 2));
 console.log('event.payload:', JSON.stringify(event.payload, null, 2));
 console.log('conversation:', JSON.stringify(conversation, null, 2));
 console.log('');
 
+// ===== EXTRACT userData FROM "Get User Data" ACTION =====
+// The "Get User Data" action stores its output in workflow.userDataResult
+// The userData from init() is typically in: userDataResult.userData or userDataResult directly
+const actionResult = workflow.userDataResult || {};
+const userDataFromAction = actionResult.userData || actionResult.data || actionResult || {};
+
+console.log('===== USER DATA FROM ACTION =====');
+console.log('actionResult:', JSON.stringify(actionResult, null, 2));
+console.log('userDataFromAction:', JSON.stringify(userDataFromAction, null, 2));
+console.log('');
+
 // ===== DETERMINE SEARCH DOMAIN =====
 let searchDomain;
+let kbFileId;
 
 if (USE_HARDCODED_DOMAIN) {
     // Testing mode: use hardcoded domain
     searchDomain = HARDCODED_DOMAIN;
+    kbFileId = null;
     console.log('🔧 USING HARDCODED DOMAIN:', searchDomain);
 } else {
-    // Production mode: try to get domain from userData
-    // NOTE: userData from init() is stored in user.tags, NOT user.userData
-    searchDomain = user.tags?.domain        // ← userData from init() goes here!
-        || user.domain                      // ← Direct property (if set)
-        || user.userData?.domain            // ← Nested userData (alternative)
-        || event.payload?.domain            // ← Event payload
-        || event.tags?.domain               // ← Event tags
-        || conversation.domain              // ← Stored in conversation
-        || conversation.tags?.domain        // ← Conversation tags
-        || DEFAULT_DOMAIN;                  // ← Last resort
+    // Production mode: Check multiple sources in priority order
+    // Priority 1: "Get User Data" action result (workflow variable)
+    // Priority 2: user.data (v2 API)
+    // Priority 3: user.tags (legacy init userData)
+    // Priority 4: Various fallbacks
 
-    console.log('===== DYNAMIC DOMAIN RESOLUTION =====');
-    console.log('user.tags?.domain:', user.tags?.domain);
-    console.log('user.domain:', user.domain);
-    console.log('user.userData?.domain:', user.userData?.domain);
-    console.log('event.payload?.domain:', event.payload?.domain);
-    console.log('event.tags?.domain:', event.tags?.domain);
-    console.log('conversation.domain:', conversation.domain);
-    console.log('conversation.tags?.domain:', conversation.tags?.domain);
-    console.log('RESOLVED searchDomain:', searchDomain);
+    searchDomain = userDataFromAction.domain       // ← From "Get User Data" action
+        || user.data?.domain                        // ← v2 API: updateUser({ data: {...} })
+        || user.tags?.domain                        // ← Legacy: init({ userData: {...} })
+        || user.domain                              // ← Direct property (if set)
+        || user.userData?.domain                    // ← Nested userData (alternative)
+        || event.payload?.domain                    // ← Event payload
+        || event.payload?.metadata?.domain          // ← Event metadata
+        || conversation.domain                      // ← Stored in conversation
+        || conversation.tags?.domain                // ← Conversation tags
+        || DEFAULT_DOMAIN;                          // ← Last resort
+
+    // Get fileId with same priority order
+    kbFileId = userDataFromAction.fileId           // ← From "Get User Data" action
+        || user.data?.fileId                        // ← v2 API
+        || user.tags?.fileId                        // ← Legacy
+        || user.kbFileId                            // ← Direct property
+        || user.userData?.fileId                    // ← Nested
+        || event.payload?.fileId                    // ← Event payload
+        || event.payload?.metadata?.fileId          // ← Event metadata
+        || null;
+
+    console.log('===== DOMAIN RESOLUTION =====');
+    console.log('Source checks:');
+    console.log('  1. userDataFromAction.domain:', userDataFromAction.domain);
+    console.log('  2. user.data?.domain:', user.data?.domain);
+    console.log('  3. user.tags?.domain:', user.tags?.domain);
+    console.log('  4. user.domain:', user.domain);
+    console.log('  5. event.payload?.domain:', event.payload?.domain);
+    console.log('  6. conversation.domain:', conversation.domain);
+    console.log('');
+    console.log('✅ RESOLVED searchDomain:', searchDomain);
+    console.log('✅ RESOLVED kbFileId:', kbFileId);
     console.log('');
 }
-
-// Get optional fileId (if passed from frontend)
-const kbFileId = user.tags?.fileId || user.kbFileId || user.userData?.fileId || null;
-console.log('KB File ID (if passed):', kbFileId);
-console.log('');
 
 // ===== SEARCH KB (OPTIMIZED PATH) =====
 let kbResults;
@@ -85,7 +119,7 @@ if (kbFileId) {
 
 // FALLBACK PATH: Search by domain tag if no fileId or fileId search failed
 if (!kbFileId || !kbResults) {
-    console.log('===== SEARCHING DOMAIN-SPECIFIC KB BY TAG =====');
+    console.log('===== SEARCHING KB BY DOMAIN TAG =====');
     console.log('Tags:', JSON.stringify({ domain: searchDomain }, null, 2));
     console.log('Query:', event.preview);
     console.log('');
@@ -219,6 +253,7 @@ console.log('Summary:');
 console.log('  Found KB:', !!kbContext);
 console.log('  Search method:', foundDomainKB ? 'domain-specific' : 'default');
 console.log('  Domain used:', searchDomain);
+console.log('  File ID used:', kbFileId || '(searched by tag)');
 console.log('  Context length:', kbContext.length, 'chars');
 console.log('========================================');
 console.log('');

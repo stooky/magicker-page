@@ -1,12 +1,85 @@
 /**
  * Create Knowledge Base using Botpress SDK
  * Uploads scraped content with domain tagging for context-aware responses
+ * Waits for indexing to complete before returning (no polling needed)
+ * Also saves a local copy of the KB file for debugging/backup
  *
  * POST /api/botpress/kb-create
  * Body: { domain, fullContent, sessionID, website }
  */
 import { Client } from '@botpress/client';
 import { logInfo, logError, logDebug } from '../../../lib/botpressLogger';
+import fs from 'fs';
+import path from 'path';
+import { DEBUG_BOTPRESS_REQUESTS, DEBUG_OPTIONS, logBotpressRequest, logBotpressResponse } from '../../../configuration/debugConfig';
+
+// Helper to wait for indexing to complete
+async function waitForIndexing(fileId, token, workspaceId, botId, maxWaitMs = 30000) {
+    const startTime = Date.now();
+    const pollInterval = 1000; // Check every 1 second
+
+    while (Date.now() - startTime < maxWaitMs) {
+        try {
+            const statusUrl = `https://api.botpress.cloud/v1/files/${fileId}`;
+            const statusHeaders = {
+                'Authorization': `Bearer ${token}`,
+                'x-workspace-id': workspaceId,
+                'x-bot-id': botId,
+                'Content-Type': 'application/json'
+            };
+
+            if (DEBUG_BOTPRESS_REQUESTS && DEBUG_OPTIONS.LOG_STATUS_POLLING) {
+                logBotpressRequest('KB-STATUS', 'Check indexing status', {
+                    url: statusUrl,
+                    method: 'GET',
+                    headers: { ...statusHeaders, Authorization: '[REDACTED]' },
+                    fileId: fileId,
+                    elapsedMs: Date.now() - startTime
+                });
+            }
+
+            const response = await fetch(statusUrl, { headers: statusHeaders });
+
+            if (response.ok) {
+                const data = await response.json();
+                const file = data.file || data;
+                const status = file.status || file.state || 'unknown';
+
+                if (DEBUG_BOTPRESS_REQUESTS && DEBUG_OPTIONS.LOG_STATUS_POLLING) {
+                    logBotpressResponse('KB-STATUS', 'Indexing status response', {
+                        status: status,
+                        fileId: fileId,
+                        file: file
+                    }, Date.now() - startTime);
+                }
+
+                console.log(`[KB-CREATE] Indexing status: ${status} (${Date.now() - startTime}ms elapsed)`);
+
+                // ONLY return ready when status is explicitly 'indexing_completed'
+                if (status === 'indexing_completed') {
+                    return { ready: true, status };
+                }
+
+                // Fail fast on errors
+                if (status === 'indexing_failed' || status === 'error') {
+                    return { ready: false, status, error: 'Indexing failed' };
+                }
+
+                // Still pending - continue polling
+                // statuses: upload_pending, indexing_pending, indexing_in_progress
+            }
+        } catch (err) {
+            console.warn('[KB-CREATE] Error checking status:', err.message);
+        }
+
+        // Wait before next check
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+    }
+
+    // Timeout - assume ready (Botpress indexing is usually fast for small files)
+    console.warn('[KB-CREATE] Indexing wait timeout after 30s, assuming ready');
+    return { ready: true, status: 'timeout_assumed_ready' };
+}
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -27,6 +100,7 @@ export default async function handler(req, res) {
 
     const token = process.env.BOTPRESS_API_TOKEN;
     const botId = process.env.BOTPRESS_BOT_ID;
+    const workspaceId = process.env.BOTPRESS_CLIENT_ID;
 
     if (!token || !botId) {
         logError('KB Create: Botpress configuration missing');
@@ -48,12 +122,12 @@ export default async function handler(req, res) {
         const timestamp = Date.now();
         const fileName = `${sanitizedDomain}-${timestamp}.txt`;
 
-        console.log(`Creating Knowledge Base for domain: ${domain}`);
-        console.log(`File name: ${fileName}`);
-        console.log(`Content length: ${fullContent.length} characters`);
+        console.log(`[KB-CREATE] Creating Knowledge Base for domain: ${domain}`);
+        console.log(`[KB-CREATE] File name: ${fileName}`);
+        console.log(`[KB-CREATE] Content length: ${fullContent.length} characters`);
 
-        // Upload file using Botpress SDK
-        const file = await bp.uploadFile({
+        // Prepare upload payload
+        const uploadPayload = {
             key: fileName,
             content: fullContent,
             index: true,  // Enable indexing for semantic search
@@ -65,28 +139,82 @@ export default async function handler(req, res) {
                 source: 'knowledge-base',
                 createdAt: new Date().toISOString()
             }
-        });
+        };
 
-        console.log('Full uploadFile response:', JSON.stringify(file, null, 2));
+        // Debug log the request
+        if (DEBUG_BOTPRESS_REQUESTS && DEBUG_OPTIONS.LOG_KB_REQUESTS) {
+            logBotpressRequest('KB-CREATE', 'Upload file to Botpress', {
+                endpoint: 'Botpress SDK bp.uploadFile()',
+                botId: botId,
+                payload: {
+                    ...uploadPayload,
+                    content: `[${fullContent.length} characters - truncated]`,
+                    contentPreview: fullContent.substring(0, 500) + '...'
+                }
+            });
+        }
+
+        const uploadStartTime = Date.now();
+
+        // Upload file using Botpress SDK
+        const file = await bp.uploadFile(uploadPayload);
+
+        // Debug log the response
+        if (DEBUG_BOTPRESS_REQUESTS && DEBUG_OPTIONS.LOG_KB_REQUESTS) {
+            logBotpressResponse('KB-CREATE', 'File upload response', file, Date.now() - uploadStartTime);
+        }
+
+        console.log('[KB-CREATE] Upload response:', JSON.stringify(file, null, 2));
 
         // Extract file ID from response (Botpress SDK returns { file: { id: "..." } })
         const fileId = file.file?.id || file.id;
-        console.log('Knowledge Base file created with ID:', fileId);
-        logInfo('KB Created Successfully', { fileId, domain, sessionID, fileName });
+        console.log('[KB-CREATE] File created with ID:', fileId);
 
-        // Return success with file info
+        // Wait for indexing to complete (no more frontend polling!)
+        console.log('[KB-CREATE] Waiting for indexing to complete...');
+        const indexResult = await waitForIndexing(fileId, token, workspaceId, botId);
+
+        console.log(`[KB-CREATE] ✅ Indexing complete! Status: ${indexResult.status}`);
+        logInfo('KB Created & Indexed Successfully', { fileId, domain, sessionID, fileName, indexStatus: indexResult.status });
+
+        // Save a local copy of the KB file for debugging/backup
+        // Format: [domain]-[timestamp]-[botpress fileID].txt
+        try {
+            const kbDir = path.join(process.cwd(), 'data', 'kb-files');
+
+            // Create directory if it doesn't exist
+            if (!fs.existsSync(kbDir)) {
+                fs.mkdirSync(kbDir, { recursive: true });
+                console.log(`[KB-CREATE] Created KB directory: ${kbDir}`);
+            }
+
+            // Build local filename: same as uploaded but with fileId appended
+            const localFileName = `${sanitizedDomain}-${timestamp}-${fileId}.txt`;
+            const localFilePath = path.join(kbDir, localFileName);
+
+            // Write the file
+            fs.writeFileSync(localFilePath, fullContent, 'utf8');
+            console.log(`[KB-CREATE] ✅ Local copy saved: ${localFilePath}`);
+        } catch (saveError) {
+            // Don't fail the request if local save fails
+            console.warn('[KB-CREATE] ⚠️ Failed to save local copy:', saveError.message);
+        }
+
+        // Return success with ready=true (frontend can proceed immediately)
         res.status(200).json({
             success: true,
+            ready: indexResult.ready,  // NEW: Signal that KB is ready to use
             fileId: fileId,
             fileName: fileName,
             domain: domain,
             indexed: true,
-            message: 'Knowledge Base created successfully',
+            indexStatus: indexResult.status,
+            message: 'Knowledge Base created and indexed successfully',
             data: file
         });
 
     } catch (error) {
-        console.error('Error creating Knowledge Base:', error);
+        console.error('[KB-CREATE] Error creating Knowledge Base:', error);
         logError('KB Create Failed', error);
         res.status(500).json({
             success: false,

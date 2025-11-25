@@ -48,36 +48,49 @@ magic-page/
 ├── pages/
 │   ├── index.js                           # Main page (form + chat)
 │   └── api/
-│       ├── botpress/                      # NEW: Botpress integration
+│       ├── botpress/                      # Botpress integration
+│       │   ├── kb-create.js               # Create Knowledge Base files
+│       │   ├── kb-status.js               # Check KB indexing status
 │       │   ├── create-session.js          # Create bot sessions
+│       │   ├── get-auth-token.js          # Generate JWT tokens
 │       │   ├── webhook.js                 # Receive bot events
 │       │   └── get-config.js              # Get bot configuration
 │       ├── dbInsertVisitor.js             # Database operations
 │       ├── dbGetVisitor.js
 │       ├── dbUpdateVisitor.js
-│       ├── zapier-proxy.js                # Zapier integration
+│       ├── scrape-website.js              # Website content scraping
 │       └── get-screenshot.js              # Website thumbnails
 │
 ├── components/
-│   ├── Valhallah.js                       # UPDATED: Botpress widget
+│   ├── Valhallah.js                       # Botpress webchat widget
 │   ├── FormComponent.js                   # Lead capture form
 │   ├── LoadingComponent.js                # Loading screen
 │   └── ScanningComponent.js               # Scanning screen
 │
-├── botpress-bot-config/                   # NEW: Bot configuration
-│   ├── flows/
-│   │   └── lead-capture.json              # Pre-built conversation flow
-│   ├── actions/
-│   │   └── saveLeadToMagicPage.js         # Lead saving action
-│   └── README.md
+├── configuration/
+│   ├── screenStates.js                    # UI state constants
+│   └── debugConfig.js                     # Debug logging configuration
+│
+├── lib/
+│   ├── botpressLogger.js                  # Botpress logging utilities
+│   └── scrapers/                          # Website scraping modules
+│       ├── openai-extractor.js            # AI content extraction
+│       └── scraper-orchestrator.js        # Scraping coordinator
 │
 ├── scripts/
+│   ├── bot-execute-code-WITH-USERDATA.js  # Bot workflow Execute Code
 │   ├── database_scheme.sql                # Initial schema
-│   ├── update_database_for_botpress.sql   # Migration script
-│   └── cleanup-vendasta.sh                # Remove old files
+│   └── update_database_for_botpress.sql   # Migration script
 │
-├── docker-compose.yml                     # NEW: Botpress Docker setup
-├── .env.local                             # UPDATED: Botpress config
+├── data/
+│   └── kb-files/                          # Local KB file backups
+│
+├── docs/
+│   ├── BOTPRESS-INTEGRATION-ANALYSIS.md   # Technical deep-dive
+│   └── BOTPRESS-STUDIO-SETUP.md           # Studio configuration guide
+│
+├── docker-compose.yml                     # Botpress Docker setup
+├── .env.local                             # Environment configuration
 ├── QUICKSTART.md                          # 15-minute setup guide
 ├── BOTPRESS_MIGRATION.md                  # Detailed migration docs
 ├── MIGRATION_SUMMARY.md                   # What changed
@@ -167,6 +180,50 @@ NEXT_PUBLIC_ZAP_URL=...          # Zapier integration
 
 See `.env.local` for full configuration.
 
+### Debug Configuration
+
+Enable verbose logging for all Botpress requests by editing `configuration/debugConfig.js`:
+
+```javascript
+// Master switch - set to true to enable debug logging
+export const DEBUG_BOTPRESS_REQUESTS = true;
+
+// Fine-grained control over what gets logged
+export const DEBUG_OPTIONS = {
+    LOG_KB_REQUESTS: true,      // KB file uploads and responses
+    LOG_JWT_REQUESTS: true,     // JWT token generation
+    LOG_WEBCHAT_INIT: true,     // Webchat bp.init() calls
+    LOG_SESSION_REQUESTS: true, // Conversation session creation
+    LOG_STATUS_POLLING: true,   // KB indexing status checks
+    LOG_WEBCHAT_EVENTS: true,   // Webchat events (message, ready, etc.)
+};
+```
+
+When enabled, all Botpress requests are logged in chronological order with sequence numbers:
+
+**Server-side (Node.js console):**
+```
+╔══════════════════════════════════════════════════════════════
+║ [1] BOTPRESS REQUEST - KB-CREATE
+║ Time: 2025-11-25T14:30:00.000Z
+║ Action: Upload file to Botpress
+╠══════════════════════════════════════════════════════════════
+║ Payload:
+║   { "endpoint": "...", "botId": "...", "payload": {...} }
+╚══════════════════════════════════════════════════════════════
+```
+
+**Browser console (colored):**
+```
+╔══════════════════════════════════════════════════════════════
+║ [1] WEBCHAT REQUEST - bp.init()
+║ Time: 2025-11-25T14:30:05.000Z
+╠══════════════════════════════════════════════════════════════
+║ Payload:
+{ botId, clientId, configuration, userData: {...} }
+╚══════════════════════════════════════════════════════════════
+```
+
 ### Database Setup
 
 ```sql
@@ -187,6 +244,8 @@ CREATE DATABASE mp;
 | [QUICKSTART.md](./QUICKSTART.md) | Get started in 15 minutes | Everyone |
 | [BOTPRESS_MIGRATION.md](./BOTPRESS_MIGRATION.md) | Detailed migration guide | Developers |
 | [MIGRATION_SUMMARY.md](./MIGRATION_SUMMARY.md) | What changed in migration | Technical leads |
+| [docs/BOTPRESS-INTEGRATION-ANALYSIS.md](./docs/BOTPRESS-INTEGRATION-ANALYSIS.md) | Technical deep-dive on userData flow | Developers |
+| [docs/BOTPRESS-STUDIO-SETUP.md](./docs/BOTPRESS-STUDIO-SETUP.md) | Botpress Studio configuration | Bot builders |
 | [botpress-bot-config/README.md](./botpress-bot-config/README.md) | Bot setup & customization | Bot builders |
 
 ## Customization
