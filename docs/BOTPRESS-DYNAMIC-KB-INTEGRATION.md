@@ -183,31 +183,36 @@ async function waitForIndexing(fileId, maxAttempts = 30) {
 
 ## Passing Context to Webchat
 
-### Method 1: updateUser() (Recommended)
+### Configuration Setting
 
-After initializing the webchat, call `updateUser()` to set custom data:
+In `configuration/debugConfig.js`, set the `SETTING_KB` variable to choose the context method:
 
 ```javascript
-// Load inject script
-const script = document.createElement('script');
-script.src = 'https://cdn.botpress.cloud/webchat/v2.2/inject.js';
-document.body.appendChild(script);
+// How to pass domain/fileId context to the Botpress workflow:
+//   'MESSAGE'  - Embed [CONTEXT:...] in a visible chat message (works but ugly)
+//   'EVENT'    - Send invisible event with payload (requires Custom Trigger)
+//   'USERDATA' - Use updateUser() after bp.initialized (cleanest)
+export const SETTING_KB = 'USERDATA';
+```
 
-script.onload = () => {
-  const bp = window.botpress;
+### Method 1: USERDATA (Recommended)
 
-  // Initialize webchat
-  bp.init({
-    botId: 'your-bot-id',
-    clientId: 'your-client-id',
-    configuration: {
-      botName: 'Assistant',
-      color: '#3276EA'
-    }
-  });
+Wait for `bp.initialized` property to become true, then call `updateUser()`:
 
-  // Listen for ready event, then set user data
-  bp.on('webchat:ready', async () => {
+```javascript
+const bp = window.botpress;
+
+bp.init({
+  botId: 'your-bot-id',
+  clientId: 'your-client-id',
+  configuration: { botName: 'Assistant', color: '#3276EA' }
+});
+
+// Wait for bp.initialized to become true
+const waitForInit = setInterval(async () => {
+  if (bp.initialized) {
+    clearInterval(waitForInit);
+
     await bp.updateUser({
       data: {
         domain: 'example.com',
@@ -216,32 +221,47 @@ script.onload = () => {
         fileId: 'file_01KAY582T8J423AKKXEE58XC3Q'
       }
     });
-  });
-};
+
+    // Now send greeting
+    await bp.open();
+    await bp.sendMessage('Hi! I\'d like to learn more about example.com.');
+  }
+}, 100);
 ```
 
-### Method 2: Conversation Tags (via API)
+### Method 2: MESSAGE (Fallback)
 
-Create conversation with tags server-side:
+Embed context directly in the first message text:
 
 ```javascript
-POST https://api.botpress.cloud/v1/chat/conversations
-{
-  "channel": "webchat",
-  "tags": {
-    "domain": "example.com",
-    "fileId": "file_01KAY582T8J423AKKXEE58XC3Q"
-  }
-}
+const contextTag = `[CONTEXT:domain=${domain},fileId=${fileId}]`;
+const greeting = `${contextTag}\nHi! I'd like to learn more about ${domain}.`;
+await bp.sendMessage(greeting);
 ```
+
+The Execute Code parses `[CONTEXT:...]` from `event.preview` to extract domain/fileId.
+
+### Method 3: EVENT (Requires Custom Trigger)
+
+Send an invisible event with payload:
+
+```javascript
+await bp.sendEvent({
+  type: 'setContext',
+  payload: { domain, fileId, website, sessionID }
+});
+```
+
+Requires a Custom Trigger node in Botpress Studio to capture the event.
 
 ### Where Data is Accessible in Workflows
 
 | Source | Access Pattern | Notes |
 |--------|---------------|-------|
-| `updateUser({ data: {...} })` | `user.data.domain` | Requires "Get User Data" action first |
-| Conversation tags | `conversation.tags.domain` | Set via API |
-| Event payload | `event.payload.domain` | Custom message payload |
+| `updateUser({ data: {...} })` | `user.data.domain` | USERDATA mode |
+| `[CONTEXT:...]` in message | Parse from `event.preview` | MESSAGE mode |
+| `sendEvent()` payload | `event.payload.domain` | EVENT mode (needs trigger) |
+| Conversation variables | `conversation.domain` | Cached from first message |
 
 ---
 
@@ -543,3 +563,4 @@ const domain = conversation.tags.domain;
 | Date | Version | Changes |
 |------|---------|---------|
 | 2025-11-25 | 1.0 | Initial documentation |
+| 2025-11-25 | 1.1 | Added SETTING_KB config with MESSAGE/EVENT/USERDATA modes |

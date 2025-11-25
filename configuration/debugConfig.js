@@ -5,6 +5,15 @@
  * in chronological order with full JSON/JWT payloads.
  */
 
+// =============================================================================
+// KB Context Method Setting
+// =============================================================================
+// How to pass domain/fileId context to the Botpress workflow:
+//   'MESSAGE'  - Embed [CONTEXT:...] in a visible chat message (works but ugly)
+//   'EVENT'    - Send invisible event with payload (requires Custom Trigger)
+//   'USERDATA' - Use updateUser() on webchat:initialized (cleanest if it works)
+export const SETTING_KB = 'USERDATA';
+
 // Master debug flag - set to true to enable verbose Botpress request logging
 export const DEBUG_BOTPRESS_REQUESTS = true;
 

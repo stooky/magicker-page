@@ -1,15 +1,16 @@
 // ========================================
 // BOTPRESS EXECUTE CODE - Dynamic KB Search with userData
 // ========================================
-// UPDATED: Now checks workflow.userDataResult from "Get User Data" action FIRST
-// This is the output variable you configured in Botpress Studio
+// UPDATED: Now parses [CONTEXT:...] tag from message text as PRIMARY source
+// This bypasses the broken userData path entirely
 //
 // Resolution order:
-// 1. workflow.userDataResult (from "Get User Data" action output)
-// 2. user.data (v2 API)
-// 3. user.tags (legacy/init userData)
-// 4. event/conversation fallbacks
-// 5. DEFAULT_DOMAIN
+// 1. [CONTEXT:domain=xxx,fileId=xxx] in event.preview (message text) ← NEW PRIMARY
+// 2. workflow.userDataResult (from "Get User Data" action output)
+// 3. user.data (v2 API)
+// 4. user.tags (legacy/init userData)
+// 5. event/conversation fallbacks
+// 6. DEFAULT_DOMAIN
 
 // ===== CONFIGURATION =====
 const USE_HARDCODED_DOMAIN = false; // Set to TRUE for testing in Botpress Studio
@@ -19,12 +20,60 @@ const DEFAULT_DOMAIN = 'default.com'; // Fallback if no domain found
 
 console.log('');
 console.log('========================================');
-console.log('🔍 KB SEARCH EXECUTE CODE - START');
+console.log('KB SEARCH EXECUTE CODE - START');
 console.log('========================================');
 console.log('');
 
+// ===== CHECK FOR CONTEXT EVENT (EVENT mode) =====
+// If this is a setContext event, store context and exit early
+if (event.type === 'setContext') {
+    console.log('Received setContext EVENT');
+    console.log('Event payload:', JSON.stringify(event.payload));
+
+    // Store context in conversation for subsequent messages
+    if (event.payload?.domain) {
+        conversation.domain = event.payload.domain;
+        console.log('Stored domain in conversation:', event.payload.domain);
+    }
+    if (event.payload?.fileId) {
+        conversation.fileId = event.payload.fileId;
+        console.log('Stored fileId in conversation:', event.payload.fileId);
+    }
+
+    // Set workflow variables so this event doesn't trigger a response
+    workflow.kbContext = '';
+    workflow.searchDomain = event.payload?.domain || '';
+    workflow.foundDomainKB = false;
+    workflow.isContextEvent = true;  // Flag to skip response
+
+    console.log('Context stored. Exiting early (no response for context events).');
+    // Exit early - don't process as a normal message
+    return;
+}
+
+// ===== PARSE CONTEXT FROM MESSAGE TEXT (MESSAGE mode) =====
+// Format: [CONTEXT:domain=xxx,fileId=xxx]
+let messageContext = { domain: null, fileId: null };
+const messageText = event.preview || event.payload?.text || '';
+const contextMatch = messageText.match(/\[CONTEXT:([^\]]+)\]/);
+if (contextMatch) {
+    const contextStr = contextMatch[1];
+    console.log('Found CONTEXT tag:', contextStr);
+
+    // Parse key=value pairs
+    const pairs = contextStr.split(',');
+    pairs.forEach(pair => {
+        const [key, value] = pair.split('=');
+        if (key && value) {
+            messageContext[key.trim()] = value.trim();
+        }
+    });
+    console.log('Parsed context:', JSON.stringify(messageContext));
+}
+
 // ===== DEBUG: LOG ALL AVAILABLE DATA =====
 console.log('===== ALL AVAILABLE DATA =====');
+console.log('messageContext (from text):', JSON.stringify(messageContext, null, 2));
 console.log('workflow.userDataResult:', JSON.stringify(workflow.userDataResult, null, 2));
 console.log('user:', JSON.stringify(user, null, 2));
 console.log('event.payload:', JSON.stringify(event.payload, null, 2));
@@ -53,12 +102,14 @@ if (USE_HARDCODED_DOMAIN) {
     console.log('🔧 USING HARDCODED DOMAIN:', searchDomain);
 } else {
     // Production mode: Check multiple sources in priority order
-    // Priority 1: "Get User Data" action result (workflow variable)
-    // Priority 2: user.data (v2 API)
-    // Priority 3: user.tags (legacy init userData)
-    // Priority 4: Various fallbacks
+    // Priority 1: [CONTEXT:...] parsed from message text (most reliable!)
+    // Priority 2: "Get User Data" action result (workflow variable)
+    // Priority 3: user.data (v2 API)
+    // Priority 4: user.tags (legacy init userData)
+    // Priority 5: Various fallbacks
 
-    searchDomain = userDataFromAction.domain       // ← From "Get User Data" action
+    searchDomain = messageContext.domain           // ← NEW: From message text [CONTEXT:...]
+        || userDataFromAction.domain               // ← From "Get User Data" action
         || user.data?.domain                        // ← v2 API: updateUser({ data: {...} })
         || user.tags?.domain                        // ← Legacy: init({ userData: {...} })
         || user.domain                              // ← Direct property (if set)
@@ -70,23 +121,24 @@ if (USE_HARDCODED_DOMAIN) {
         || DEFAULT_DOMAIN;                          // ← Last resort
 
     // Get fileId with same priority order
-    kbFileId = userDataFromAction.fileId           // ← From "Get User Data" action
+    kbFileId = messageContext.fileId               // ← NEW: From message text [CONTEXT:...]
+        || userDataFromAction.fileId               // ← From "Get User Data" action
         || user.data?.fileId                        // ← v2 API
         || user.tags?.fileId                        // ← Legacy
         || user.kbFileId                            // ← Direct property
         || user.userData?.fileId                    // ← Nested
         || event.payload?.fileId                    // ← Event payload
         || event.payload?.metadata?.fileId          // ← Event metadata
+        || conversation.fileId                      // ← Stored from previous message
         || null;
 
     console.log('===== DOMAIN RESOLUTION =====');
     console.log('Source checks:');
-    console.log('  1. userDataFromAction.domain:', userDataFromAction.domain);
-    console.log('  2. user.data?.domain:', user.data?.domain);
-    console.log('  3. user.tags?.domain:', user.tags?.domain);
-    console.log('  4. user.domain:', user.domain);
-    console.log('  5. event.payload?.domain:', event.payload?.domain);
-    console.log('  6. conversation.domain:', conversation.domain);
+    console.log('  1. messageContext.domain:', messageContext.domain, '← MESSAGE mode');
+    console.log('  2. userDataFromAction.domain:', userDataFromAction.domain, '← Get User Data action');
+    console.log('  3. user.data?.domain:', user.data?.domain, '← USERDATA mode (updateUser)');
+    console.log('  4. user.tags?.domain:', user.tags?.domain, '← Legacy');
+    console.log('  5. conversation.domain:', conversation.domain, '← EVENT mode or cached');
     console.log('');
     console.log('✅ RESOLVED searchDomain:', searchDomain);
     console.log('✅ RESOLVED kbFileId:', kbFileId);
@@ -239,10 +291,14 @@ workflow.kbContext = kbContext;
 workflow.searchDomain = searchDomain;
 workflow.foundDomainKB = foundDomainKB;
 
-// Store domain in conversation for future messages
+// Store domain and fileId in conversation for future messages (so user doesn't need [CONTEXT:...] every time)
 if (searchDomain && searchDomain !== DEFAULT_DOMAIN) {
     conversation.domain = searchDomain;
-    console.log('💾 Stored domain in conversation:', searchDomain);
+    console.log('Stored domain in conversation:', searchDomain);
+}
+if (kbFileId) {
+    conversation.fileId = kbFileId;
+    console.log('Stored fileId in conversation:', kbFileId);
 }
 
 console.log('');
