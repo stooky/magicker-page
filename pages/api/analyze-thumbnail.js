@@ -14,6 +14,15 @@
 
 import OpenAI from 'openai';
 
+// Increase body size limit for base64 images (default is 1MB)
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '10mb',
+        },
+    },
+};
+
 // Default fallback theme (Marv, blue, super happy smiley)
 const DEFAULT_THEME = {
     name: 'Marv',
