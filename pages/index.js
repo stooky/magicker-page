@@ -34,9 +34,130 @@ const MainContainer = () => {
     const [kbFileId, setKbFileId] = useState(null);
     const [kbReady, setKbReady] = useState(false);
     const [snippetsShownCount, setSnippetsShownCount] = useState(0);
+    const [webchatPreloaded, setWebchatPreloaded] = useState(false);
     const apiKey = process.env.NEXT_PUBLIC_PDL_API_KEY;
     const apiUrl = process.env.NEXT_PUBLIC_PDL_API_URL;
     const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN;
+
+    // Preload webchat during scanning phase
+    useEffect(() => {
+        if (isScanning && !webchatPreloaded) {
+            console.log('[WEBCHAT PRELOAD] Starting webchat preload during scanning...');
+
+            // Check if already loaded
+            if (window.__BOTPRESS_PRELOADED__) {
+                console.log('[WEBCHAT PRELOAD] Already preloaded, skipping');
+                setWebchatPreloaded(true);
+                return;
+            }
+
+            // Add CSS to hide webchat during preload - aggressive selectors for Botpress v2.2
+            const hideStyle = document.createElement('style');
+            hideStyle.id = 'botpress-preload-hide';
+            hideStyle.textContent = `
+                #bp-web-widget-container,
+                .bpw-widget-btn,
+                [class*="WebchatContainer"],
+                [class*="webchat"],
+                [class*="Webchat"],
+                [id*="bp-"],
+                [id*="botpress"],
+                div[class^="bpw-"],
+                div[class*=" bpw-"],
+                iframe[title*="chat"],
+                iframe[title*="Chat"],
+                iframe[src*="botpress"] {
+                    opacity: 0 !important;
+                    pointer-events: none !important;
+                    visibility: hidden !important;
+                    position: fixed !important;
+                    left: -9999px !important;
+                    top: -9999px !important;
+                }
+            `;
+            document.head.appendChild(hideStyle);
+            console.log('[WEBCHAT PRELOAD] Added hide CSS');
+
+            // Load inject script
+            const injectScript = document.createElement('script');
+            injectScript.src = 'https://cdn.botpress.cloud/webchat/v2.2/inject.js';
+
+            injectScript.onload = async () => {
+                console.log('[WEBCHAT PRELOAD] Inject script loaded');
+
+                // Wait for window.botpress
+                let attempts = 0;
+                while (!window.botpress && attempts < 50) {
+                    await new Promise(r => setTimeout(r, 100));
+                    attempts++;
+                }
+
+                if (!window.botpress) {
+                    console.error('[WEBCHAT PRELOAD] window.botpress not available');
+                    return;
+                }
+
+                const bp = window.botpress;
+                console.log('[WEBCHAT PRELOAD] window.botpress available');
+
+                // Clear old Botpress localStorage to force fresh session
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.startsWith('bp/') || key.includes('botpress'))) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+                if (keysToRemove.length > 0) {
+                    console.log(`[WEBCHAT PRELOAD] Cleared ${keysToRemove.length} Botpress localStorage keys`);
+                }
+
+                // Set up conversation listener
+                window.__BOTPRESS_CONVERSATION_READY__ = false;
+                window.__BOTPRESS_CONVERSATION_ID__ = null;
+
+                bp.on('conversation', (convId) => {
+                    console.log('[WEBCHAT PRELOAD] Conversation started:', convId);
+                    window.__BOTPRESS_CONVERSATION_READY__ = true;
+                    window.__BOTPRESS_CONVERSATION_ID__ = convId;
+                });
+
+                bp.on('webchat:ready', () => {
+                    console.log('[WEBCHAT PRELOAD] Webchat ready');
+                });
+
+                // Initialize webchat but DON'T open yet
+                // Opening during preload starts conversation & bot greeting before we can send context
+                bp.init({
+                    botId: '3809961f-f802-40a3-aa5a-9eb91c0dedbb',
+                    clientId: 'f4011114-6902-416b-b164-12a8df8d0f3d',
+                    configuration: {
+                        botName: 'Sunny',
+                        botDescription: 'Your friendly AI assistant',
+                        botAvatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=sunny&backgroundColor=ffdfbf&eyes=bulging',
+                        color: '#E76F00',  // Member Solutions orange
+                        variant: 'solid',
+                        themeMode: 'light',
+                        fontFamily: 'inter',
+                        radius: 1
+                    }
+                });
+                console.log('[WEBCHAT PRELOAD] init() called - NOT opening yet (conversation will start in Valhallah)');
+
+                // Mark as preloaded but conversation NOT ready (Valhallah will open and send context)
+                window.__BOTPRESS_PRELOADED__ = true;
+                window.__BOTPRESS_CONVERSATION_READY__ = false;
+                setWebchatPreloaded(true);
+            };
+
+            injectScript.onerror = (err) => {
+                console.error('[WEBCHAT PRELOAD] Failed to load inject script:', err);
+            };
+
+            document.body.appendChild(injectScript);
+        }
+    }, [isScanning, webchatPreloaded]);
 
 
 
@@ -137,7 +258,18 @@ useEffect(() => {
             setScreenState(SCREEN_STATES.FORM);
         }
     }, [isLoading, isScanning, botpressStatus]);
-    
+
+    // Remove webchat hide CSS when transitioning to chat screen
+    useEffect(() => {
+        if (screenState === SCREEN_STATES.CHAT_TEASE) {
+            const hideStyle = document.getElementById('botpress-preload-hide');
+            if (hideStyle) {
+                hideStyle.remove();
+                console.log('[WEBCHAT PRELOAD] Removed hide CSS - webchat now visible');
+            }
+        }
+    }, [screenState]);
+
     // Loop through our messages.
     useEffect(() => {
         if (messages.length > 0) {
