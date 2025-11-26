@@ -77,7 +77,16 @@ const waitFor = (checkFn, maxWaitMs = 5000, intervalMs = 200) => {
     });
 };
 
-export default function Valhallah({ authToken, domain, isReturning, screenshotUrl, sessionID, website, kbFileId }) {
+// Default Marv theme (fallback)
+const DEFAULT_BOT_THEME = {
+    name: 'Marv',
+    avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=marv&backgroundColor=b6e3f4&eyes=happy&mouth=smile01',
+    primaryColor: '#2563eb',
+    secondaryColor: '#1e40af',
+    description: 'Your friendly assistant'
+};
+
+export default function Valhallah({ authToken, domain, isReturning, screenshotUrl, sessionID, website, kbFileId, botTheme = DEFAULT_BOT_THEME }) {
     const hasInitialized = useRef(false);
     const [chatReady, setChatReady] = useState(false);
     const [fadeIn, setFadeIn] = useState(false);
@@ -101,8 +110,10 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
             sessionID: sessionID || 'NOT PROVIDED',
             kbFileId: kbFileId || 'NOT PROVIDED',
             isReturning,
-            hasScreenshot: !!screenshotUrl
+            hasScreenshot: !!screenshotUrl,
+            botTheme: botTheme?.name || 'DEFAULT'
         });
+        log('Theme:', botTheme?.name, '| Color:', botTheme?.primaryColor);
     }
 
     // Fade-in animation
@@ -110,6 +121,8 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
         const timer = setTimeout(() => setFadeIn(true), 100);
         return () => clearTimeout(timer);
     }, []);
+
+    // Note: Loading overlay is now removed by index.js when transitioning to CHAT_TEASE
 
     // Main webchat initialization
     useEffect(() => {
@@ -351,14 +364,17 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
 
             // Step 4: Initialize webchat (listeners already set up)
             log('Step 4: Initializing webchat...');
+            // Use theme from props (AI-generated or default Marv)
+            const theme = botTheme || DEFAULT_BOT_THEME;
+            log('Using theme:', theme.name, theme.primaryColor);
             const initConfig = {
                 botId: '3809961f-f802-40a3-aa5a-9eb91c0dedbb',
                 clientId: 'f4011114-6902-416b-b164-12a8df8d0f3d',
                 configuration: {
-                    botName: 'Sunny',
-                    botDescription: 'Your friendly AI assistant for ' + domain,
-                    botAvatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=sunny&backgroundColor=ffdfbf&eyes=bulging',
-                    color: '#E76F00',  // Member Solutions orange
+                    botName: theme.name,
+                    botDescription: theme.description || ('Your friendly AI assistant for ' + domain),
+                    botAvatar: theme.avatar,
+                    color: theme.primaryColor,
                     variant: 'solid',
                     themeMode: 'light',
                     fontFamily: 'inter',
@@ -522,7 +538,7 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
         log('Appending inject script to document');
         document.body.appendChild(injectScript);
 
-    }, [domain, sessionID, website, kbFileId]);
+    }, [domain, sessionID, website, kbFileId, botTheme]);
 
     const backgroundStyle = screenshotUrl ? {
         backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.3)), url(${screenshotUrl})`,

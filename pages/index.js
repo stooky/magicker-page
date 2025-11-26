@@ -35,6 +35,17 @@ const MainContainer = () => {
     const [kbReady, setKbReady] = useState(false);
     const [snippetsShownCount, setSnippetsShownCount] = useState(0);
     const [webchatPreloaded, setWebchatPreloaded] = useState(false);
+
+    // Bot theme state (AI-generated from thumbnail, or Marv fallback)
+    const DEFAULT_BOT_THEME = {
+        name: 'Marv',
+        avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=marv&backgroundColor=b6e3f4&eyes=happy&mouth=smile01',
+        primaryColor: '#2563eb',
+        secondaryColor: '#1e40af',
+        description: 'Your friendly assistant'
+    };
+    const [botTheme, setBotTheme] = useState(DEFAULT_BOT_THEME);
+
     const apiKey = process.env.NEXT_PUBLIC_PDL_API_KEY;
     const apiUrl = process.env.NEXT_PUBLIC_PDL_API_URL;
     const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN;
@@ -77,6 +88,38 @@ const MainContainer = () => {
             `;
             document.head.appendChild(hideStyle);
             console.log('[WEBCHAT PRELOAD] Added hide CSS');
+
+            // Add "AI Agent coming soon" overlay box (3x size: 240x240)
+            const overlayBox = document.createElement('div');
+            overlayBox.id = 'webchat-loading-overlay';
+            overlayBox.innerHTML = `
+                <div style="
+                    position: fixed;
+                    bottom: 20px;
+                    right: 20px;
+                    width: 240px;
+                    height: 240px;
+                    background: rgba(0, 35, 76, 0.95);
+                    border-radius: 20px;
+                    border: 2px solid rgba(231, 111, 0, 0.5);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 99999;
+                    padding: 20px;
+                    text-align: center;
+                ">
+                    <span style="
+                        color: white;
+                        font-size: 18px;
+                        font-family: 'Inter', sans-serif;
+                        line-height: 1.4;
+                    ">Your AI Agent will appear here soon!</span>
+                </div>
+            `;
+            document.body.appendChild(overlayBox);
+            console.log('[WEBCHAT PRELOAD] Added loading overlay');
 
             // Load inject script
             const injectScript = document.createElement('script');
@@ -127,16 +170,25 @@ const MainContainer = () => {
                     console.log('[WEBCHAT PRELOAD] Webchat ready');
                 });
 
+                // Get theme from window global (set by analyze-thumbnail API)
+                const theme = window.__BOTPRESS_THEME__ || {
+                    name: 'Marv',
+                    avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=marv&backgroundColor=b6e3f4&eyes=happy&mouth=smile01',
+                    primaryColor: '#2563eb',
+                    description: 'Your friendly assistant'
+                };
+                console.log('[WEBCHAT PRELOAD] Using theme:', theme.name, theme.primaryColor);
+
                 // Initialize webchat but DON'T open yet
                 // Opening during preload starts conversation & bot greeting before we can send context
                 bp.init({
                     botId: '3809961f-f802-40a3-aa5a-9eb91c0dedbb',
                     clientId: 'f4011114-6902-416b-b164-12a8df8d0f3d',
                     configuration: {
-                        botName: 'Sunny',
-                        botDescription: 'Your friendly AI assistant',
-                        botAvatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=sunny&backgroundColor=ffdfbf&eyes=bulging',
-                        color: '#E76F00',  // Member Solutions orange
+                        botName: theme.name,
+                        botDescription: theme.description,
+                        botAvatar: theme.avatar,
+                        color: theme.primaryColor,
                         variant: 'solid',
                         themeMode: 'light',
                         fontFamily: 'inter',
@@ -259,13 +311,23 @@ useEffect(() => {
         }
     }, [isLoading, isScanning, botpressStatus]);
 
-    // Remove webchat hide CSS when transitioning to chat screen
+    // Remove webchat hide CSS and overlay when transitioning to chat screen
     useEffect(() => {
         if (screenState === SCREEN_STATES.CHAT_TEASE) {
             const hideStyle = document.getElementById('botpress-preload-hide');
             if (hideStyle) {
                 hideStyle.remove();
                 console.log('[WEBCHAT PRELOAD] Removed hide CSS - webchat now visible');
+            }
+            // Remove the loading overlay with fade out
+            const overlay = document.getElementById('webchat-loading-overlay');
+            if (overlay) {
+                overlay.style.transition = 'opacity 0.3s ease-out';
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    overlay.remove();
+                    console.log('[WEBCHAT PRELOAD] Removed loading overlay');
+                }, 300);
             }
         }
     }, [screenState]);
@@ -441,10 +503,38 @@ useEffect(() => {
             const screenshotResponse = await fetch(`/api/get-screenshot?url=${encodeURIComponent(website)}&sessionID=${sessionID}`);
             const screenshotData = await screenshotResponse.json();
             if (screenshotData.screenshotUrl) {
+                console.log('Thumbnail successfully captured and generated.');
+
+                // Analyze thumbnail with OpenAI to get dynamic theme
+                console.log('Analyzing thumbnail for bot theme...');
+                try {
+                    const themeResponse = await fetch('/api/analyze-thumbnail', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ thumbnailBase64: screenshotData.screenshotUrl })
+                    });
+                    const themeData = await themeResponse.json();
+
+                    if (themeData.success && themeData.theme) {
+                        console.log('AI-generated theme:', themeData.theme);
+                        setBotTheme(themeData.theme);
+                        // Store in window for webchat preload to access
+                        window.__BOTPRESS_THEME__ = themeData.theme;
+                    } else {
+                        console.log('Using default Marv theme');
+                        window.__BOTPRESS_THEME__ = DEFAULT_BOT_THEME;
+                    }
+                } catch (themeError) {
+                    console.error('Theme analysis failed, using Marv fallback:', themeError.message);
+                    window.__BOTPRESS_THEME__ = DEFAULT_BOT_THEME;
+                }
+
+                // Now set screenshot URL (triggers scanning phase)
                 setScreenshotUrl(screenshotData.screenshotUrl);
-                console.log('Thumbnail successfully captured and generated.', screenshotUrl, ' : ', screenshotData.screenshotUrl);
             } else {
                 console.error('Error fetching screenshot:', screenshotData.error);
+                // Even if screenshot fails, set default theme
+                window.__BOTPRESS_THEME__ = DEFAULT_BOT_THEME;
             }
 
             // Insert the visitor data into the database (skip screenshot - too large)
@@ -609,6 +699,7 @@ useEffect(() => {
                     sessionID={sessionID}
                     website={enteredWebsite}
                     kbFileId={kbFileId}
+                    botTheme={botTheme}
                 />
             ) : (
                 <div className="centered-content">
