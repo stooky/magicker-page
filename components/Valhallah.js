@@ -77,11 +77,35 @@ const waitFor = (checkFn, maxWaitMs = 5000, intervalMs = 200) => {
     });
 };
 
+// Hide webchat until fully initialized
+const hideWebchatStyle = `
+    #bp-web-widget-container,
+    .bpw-widget-btn,
+    [class*="WebchatContainer"],
+    [class*="webchat"] {
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transition: opacity 0.3s ease-in-out;
+    }
+`;
+
+const showWebchatStyle = `
+    #bp-web-widget-container,
+    .bpw-widget-btn,
+    [class*="WebchatContainer"],
+    [class*="webchat"] {
+        opacity: 1 !important;
+        pointer-events: auto !important;
+    }
+`;
+
 export default function Valhallah({ authToken, domain, isReturning, screenshotUrl, sessionID, website, kbFileId }) {
     const hasInitialized = useRef(false);
     const [chatReady, setChatReady] = useState(false);
     const [fadeIn, setFadeIn] = useState(false);
     const [userDataConfirmed, setUserDataConfirmed] = useState(false);
+    const [webchatVisible, setWebchatVisible] = useState(false);
+    const styleRef = useRef(null);
 
     // Store domain globally
     if (typeof window !== 'undefined') {
@@ -122,6 +146,14 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
         log('--- STARTING WEBCHAT INITIALIZATION ---');
         log('Target domain:', domain);
         log('Target fileId:', kbFileId);
+
+        // Step 0: Add CSS to hide webchat until ready
+        log('Step 0: Hiding webchat until ready...');
+        const hideStyle = document.createElement('style');
+        hideStyle.id = 'bp-hide-style';
+        hideStyle.textContent = hideWebchatStyle;
+        document.head.appendChild(hideStyle);
+        styleRef.current = hideStyle;
 
         // Step 1: Clear old Botpress data to force fresh session
         log('Step 1: Clearing old Botpress localStorage...');
@@ -201,21 +233,15 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                 markReady();
             });
 
-            // Step 5: Open webchat
-            log('Step 5: Opening webchat...');
-            try {
-                await bp.open();
-                log('Webchat opened');
-            } catch (e) {
-                log('ERROR: Failed to open webchat:', e);
-            }
-
-            // Step 6: Wait for ready state (webchat:ready OR conversation event)
-            log('Step 6: Waiting for ready state...');
+            // Step 5: Wait for ready state (without opening yet - webchat is hidden)
+            log('Step 5: Waiting for ready state (webchat hidden)...');
             const startWait = Date.now();
             while (!isReady && Date.now() - startWait < 10000) {
-                await new Promise(r => setTimeout(r, 500));
-                log('Polling... isReady:', isReady, 'elapsed:', Date.now() - startWait);
+                await new Promise(r => setTimeout(r, 300));
+                // Only log every second to reduce noise
+                if ((Date.now() - startWait) % 1000 < 300) {
+                    log('Waiting for ready...', Math.round((Date.now() - startWait) / 1000) + 's');
+                }
             }
 
             if (isReady) {
@@ -224,9 +250,9 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                 log('WARN: Ready timeout after 10s, proceeding anyway');
             }
 
-            // Step 7: Set user data (USERDATA mode only)
+            // Step 6: Set user data (USERDATA mode only) - before showing webchat
             if (SETTING_KB === 'USERDATA') {
-                log('Step 7: USERDATA mode - setting userData via updateUser()...');
+                log('Step 6: USERDATA mode - setting userData via updateUser()...');
                 try {
                     await bp.updateUser({
                         data: {
@@ -247,64 +273,50 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                 }
             }
 
-            // Step 8: Wait a moment for chat to stabilize
-            log('Step 8: Waiting before sending greeting...');
-            await new Promise(r => setTimeout(r, 1000));
+            // Step 7: Show webchat (remove hide CSS) and open it
+            log('Step 7: Showing webchat...');
+            if (styleRef.current) {
+                styleRef.current.textContent = showWebchatStyle;
+            }
+            setWebchatVisible(true);
 
-            log('Step 9: Setting context and sending greeting...');
-            log('SETTING_KB mode:', SETTING_KB);
+            // Small delay for CSS transition
+            await new Promise(r => setTimeout(r, 100));
+
+            // Step 7b: Open webchat and send greeting immediately
+            log('Step 7b: Opening webchat and sending greeting...');
+
+            const greeting = SETTING_KB === 'MESSAGE'
+                ? `[CONTEXT:domain=${domain},fileId=${kbFileId || ''}]\nHi! I'd like to learn more about ${domain}.`
+                : `Hi! I'd like to learn more about ${domain}.`;
 
             try {
-                if (SETTING_KB === 'USERDATA') {
-                    // USERDATA mode: Context already set via webchat:initialized + updateUser()
-                    // Just send a clean greeting
-                    const greeting = `Hi! I'd like to learn more about ${domain}.`;
-                    log('USERDATA mode - context set via updateUser, sending clean greeting:', greeting);
-                    await bp.sendMessage(greeting);
+                // Open and send greeting in rapid succession
+                await bp.open();
 
-                } else if (SETTING_KB === 'EVENT') {
-                    // EVENT mode: Send invisible event with context, then clean greeting
-                    log('Sending context via EVENT...');
+                // For EVENT mode, send context event first
+                if (SETTING_KB === 'EVENT') {
                     await bp.sendEvent({
                         type: 'setContext',
-                        payload: {
-                            domain: domain,
-                            fileId: kbFileId || '',
-                            website: website,
-                            sessionID: sessionID
-                        }
+                        payload: { domain, fileId: kbFileId || '', website, sessionID }
                     });
-                    log('Context event sent');
-
-                    // Wait a moment for event to be processed
-                    await new Promise(r => setTimeout(r, 500));
-
-                    // Send clean greeting (no context tag visible)
-                    const greeting = `Hi! I'd like to learn more about ${domain}.`;
-                    log('Sending clean greeting:', greeting);
-                    await bp.sendMessage(greeting);
-
-                } else {
-                    // MESSAGE mode: Embed context in visible message
-                    const contextTag = `[CONTEXT:domain=${domain},fileId=${kbFileId || ''}]`;
-                    const greeting = `${contextTag}\nHi! I'd like to learn more about ${domain}.`;
-                    log('Sending message with embedded context:', greeting);
-                    await bp.sendMessage(greeting);
-                }
-                log('Auto-greeting sent successfully');
-
-                // Final verification
-                try {
-                    const finalUser = await bp.getUser();
-                    log('--- FINAL USER STATE ---');
-                    log('userId:', finalUser?.id || 'N/A');
-                    log('userData:', finalUser?.data || '(empty)');
-                } catch (e) {
-                    log('Could not get final user state');
                 }
 
+                // Send greeting immediately - no delay
+                await bp.sendMessage(greeting);
+                log('Webchat opened and greeting sent');
             } catch (e) {
-                log('ERROR: Failed to send greeting:', e);
+                log('ERROR: Failed to open/send:', e);
+            }
+
+            // Final verification
+            try {
+                const finalUser = await bp.getUser();
+                log('--- FINAL USER STATE ---');
+                log('userId:', finalUser?.id || 'N/A');
+                log('userData:', finalUser?.data || '(empty)');
+            } catch (e) {
+                log('Could not get final user state');
             }
 
             log('--- INITIALIZATION COMPLETE ---');
@@ -380,9 +392,9 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                             Loading chat widget...
                         </p>
                     )}
-                    {chatReady && !userDataConfirmed && (
+                    {chatReady && !webchatVisible && (
                         <p style={{ fontSize: '0.9rem', marginTop: '1rem', opacity: 0.7 }}>
-                            Syncing context...
+                            Preparing your assistant...
                         </p>
                     )}
                 </div>
