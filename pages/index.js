@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-// Removed Zapier webhook import - now using direct scraping API
 import { SCREEN_STATES, BOTPRESS_STATUS, SNIPPET_DISPLAY_TIME } from '../configuration/screenStates';
 import FormComponent from '../components/FormComponent';
 import LoadingComponent from '../components/LoadingComponent';
@@ -13,13 +12,13 @@ import axios from 'axios';
 const MainContainer = () => {
     const [loading, setLoading] = useState(false);
     const [callbackReceived, setCallbackReceived] = useState(true);
-    const [zapierResponse, setZapierResponse] = useState(null);
+    const [scrapeResponse, setScrapeResponse] = useState(null);
     const [screenshotUrl, setScreenshotUrl] = useState(null);
     const [iframeUrl, setIframeUrl] = useState('');
     const [showIframe, setShowIframe] = useState(false);
     const [formVisible, setFormVisible] = useState(true);
     const [enteredWebsite, setEnteredWebsite] = useState('');
-    const [messages, setMessages] = useState([]); // Hold parsed messages from Zapier
+    const [messages, setMessages] = useState([]); // Hold parsed messages from scraper
     const [currentMessageIndex, setCurrentMessageIndex] = useState(0); // Keep track of where we are in the message index
     const [isLoading, setIsLoading] = useState(false);
     const [isScanning, setIsScanning] = useState(false);  // New state for scanning
@@ -108,7 +107,7 @@ useEffect(() => {
 
 
     // Function to process scraped response message (numbered list)
-    const processZapierResponse = (response) => {
+    const processScrapeResponse = (response) => {
         if (!response) return [];
 
         // Remove HTML tags
@@ -150,8 +149,7 @@ useEffect(() => {
         }
     }, [messages]);
 
-    // OLD ZAPIER POLLING - REMOVED
-    // Now using direct response from /api/scrape-website (no polling needed)
+    // Using direct response from /api/scrape-website (no polling needed)
 
     
 
@@ -226,7 +224,7 @@ useEffect(() => {
 
         let myListingUrl = "EMPTY"; // Define and initialize myListingUrl here
 
-        setZapierResponse(null);
+        setScrapeResponse(null);
         setScreenshotUrl(null);
         setEnteredWebsite(website);
         setFormVisible(false); // Hide the form and show the message
@@ -236,8 +234,6 @@ useEffect(() => {
             alert("Please wait until the current request is processed.");
             return;
         }
-
-        await fetch('/api/clear-response', { method: 'POST' });
 
         // CHECK IF DOMAIN ALREADY EXISTS
         try {
@@ -348,13 +344,13 @@ useEffect(() => {
             console.log('Method used:', scrapeData.method_used, 'Pages found:', scrapeData.pages_found);
 
             // Process the scraped data into message items for display
-            const processedItems = processZapierResponse(scrapeData.message);
+            const processedItems = processScrapeResponse(scrapeData.message);
             // Limit to SNIPPET_SHOW number of snippets (default 5, max 10)
             const snippetLimit = parseInt(process.env.SNIPPET_SHOW) || 5;
             const limitedItems = processedItems.slice(0, Math.min(snippetLimit, 10));
             console.log(`Showing ${limitedItems.length} of ${processedItems.length} snippets`);
             setMessageItems(limitedItems);
-            setZapierResponse(scrapeData);
+            setScrapeResponse(scrapeData);
             setLoading(false);
             setCallbackReceived(true);
 
@@ -447,7 +443,7 @@ useEffect(() => {
         
         } catch (error) {
             console.error('Failed to call the API Stuff:', error);
-            setZapierResponse({ status: 'error', message: `Failed to call the API stuff: ${error.message}` });
+            setScrapeResponse({ status: 'error', message: `Failed to process request: ${error.message}` });
         }
     };
 
