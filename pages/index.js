@@ -89,37 +89,27 @@ const MainContainer = () => {
             document.head.appendChild(hideStyle);
             console.log('[WEBCHAT PRELOAD] Added hide CSS');
 
-            // Add "AI Agent coming soon" overlay box (3x size: 240x240)
+            // Add loading overlay with megaman GIF to cover chat bubble
             const overlayBox = document.createElement('div');
             overlayBox.id = 'webchat-loading-overlay';
             overlayBox.innerHTML = `
-                <div style="
-                    position: fixed;
-                    bottom: 20px;
-                    right: 20px;
-                    width: 240px;
-                    height: 240px;
-                    background: rgba(0, 35, 76, 0.95);
-                    border-radius: 20px;
-                    border: 2px solid rgba(231, 111, 0, 0.5);
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 99999;
-                    padding: 20px;
-                    text-align: center;
-                ">
-                    <span style="
-                        color: white;
-                        font-size: 18px;
-                        font-family: 'Inter', sans-serif;
-                        line-height: 1.4;
-                    ">Your AI Agent will appear here soon!</span>
-                </div>
+                <img
+                    src="/images/megaman.gif"
+                    alt="Loading..."
+                    style="
+                        position: fixed;
+                        bottom: 20px;
+                        right: 20px;
+                        width: 80px;
+                        height: 80px;
+                        object-fit: cover;
+                        z-index: 99999;
+                        border-radius: 50%;
+                    "
+                />
             `;
             document.body.appendChild(overlayBox);
-            console.log('[WEBCHAT PRELOAD] Added loading overlay');
+            console.log('[WEBCHAT PRELOAD] Added megaman loading overlay');
 
             // Load inject script
             const injectScript = document.createElement('script');
@@ -326,7 +316,7 @@ useEffect(() => {
                 overlay.style.opacity = '0';
                 setTimeout(() => {
                     overlay.remove();
-                    console.log('[WEBCHAT PRELOAD] Removed loading overlay');
+                    console.log('[WEBCHAT PRELOAD] Removed megaman overlay');
                 }, 300);
             }
         }
