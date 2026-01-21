@@ -108,6 +108,36 @@ cd magicker-page
 
 ---
 
+## 🔄 Deployment Workflow (mb.membies.com)
+
+### From Local Machine (Windows)
+
+```bash
+# Deploy latest master to production
+./deploy/deploy.sh
+
+# Deploy specific commit
+./deploy/deploy.sh abc1234
+```
+
+### From Server (already SSHed in)
+
+```bash
+cd ~/magicker-page
+./deploy/quick-deploy.sh
+
+# Or specific commit
+./deploy/quick-deploy.sh abc1234
+```
+
+### Emergency Rollback
+
+See **[ROLLBACK.md](./ROLLBACK.md)** for recovery instructions.
+
+Current working commit: `b816e16ae2ed683ae04841af7633d06decd17bb5`
+
+---
+
 ## 💡 Recommended Workflow
 
 **Best practice:** Develop on Windows, deploy to Ubuntu

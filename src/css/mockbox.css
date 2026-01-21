@@ -9,7 +9,7 @@
 -------------------------------------*/
 
 .magic_mock_body {
-    background: linear-gradient(135deg, #00234C 0%, #003d7a 35%, #E76F00 85%, #FFBB7B 100%);
+    background: linear-gradient(135deg, var(--theme-gradient-start) 0%, #003d7a 35%, var(--theme-gradient-end) 85%, #FFBB7B 100%);
     background-repeat: no-repeat;
     background-size: cover;
     width: 100%;
@@ -36,6 +36,17 @@
 
 .magic_mock_body .mock_box h2 span {
     font-family: var(--secondary-font-semibold);
+}
+
+.magic_mock_body .mock_box h3 {
+    color: var(--white-color);
+    font-size: 1.35rem;
+    font-family: 'Raleway-regular';
+    font-weight: 400;
+    max-width: 720px;
+    margin: 0 auto;
+    line-height: 1.5;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .magic_mock_body .mock_box p {

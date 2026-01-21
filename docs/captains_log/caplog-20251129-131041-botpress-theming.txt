@@ -1,0 +1,122 @@
+================================================================================
+CAPTAIN'S LOG: botpress-theming
+Date: 2025-11-29 13:10:41
+Previous Log: None - First Entry
+================================================================================
+
+## Summary
+First captain's log entry. Covers recent work on AI-powered webchat theming,
+Botpress USERDATA integration, documentation efforts, and UX improvements
+including the megaman GIF loading overlay.
+
+## Current State
+The Magic Page application is fully functional with:
+- Botpress webchat integration using USERDATA mode for context passing
+- AI-powered dynamic theming (analyzes website thumbnails for colors/avatar)
+- Knowledge Base creation with FAQ generation
+- Megaman GIF loading overlay during webchat preload
+- Comprehensive documentation in /docs folder
+
+## Work Completed
+
+### AI-Powered Dynamic Webchat Theming
+- Created `/api/analyze-thumbnail.js` using OpenAI Vision (gpt-4o-mini)
+- Extracts bot name, avatar seed, primary/secondary colors from screenshots
+- Default fallback: "Marv" with blue theme and happy smiley avatar
+- Dicebear avatar generation with `eyes=happy&mouth=smile01`
+
+### Webchat Loading UX
+- Initially added 240x240 blue overlay with "Your AI Agent will appear here soon!"
+- User requested replacement with megaman.gif
+- Final: 80x80 megaman GIF covering chat bubble during preload
+- Smooth fade-out (0.3s) on transition to CHAT_TEASE screen state
+
+### USERDATA Mode Integration
+- Implemented `bp.updateUser()` to pass context to Botpress
+- Context includes: domain, website, sessionID, kbFileId, companyName
+- Execute Code block in Botpress Studio reads from `event.state.user.userData`
+- Fixed critical bug: userData from init() stored in user.tags, not userData
+
+### Documentation Created
+- `docs/Botpress Handoff Guide.md` - 500+ line comprehensive guide
+- `docs/captains_log/` system with slash command
+- `.claude/commands/captains-log.md` for persistent instructions
+
+### Bug Fixes
+- Fixed 413 Body exceeded 1mb limit for thumbnail uploads (increased to 10mb)
+- Fixed userData not being passed correctly (use updateUser not init)
+- Fixed KB file ID not being available (pass directly for faster search)
+
+## Decisions Made
+
+1. **USERDATA over MESSAGE mode**: Chose USERDATA because it's cleaner and
+   doesn't pollute conversation history. Context is stored in user state.
+
+2. **Megaman over blue box**: User preferred animated GIF for visual interest
+   during loading phase. Sized at 80x80 to exactly cover chat bubble.
+
+3. **OpenAI for theming**: Using gpt-4o-mini Vision API is cost-effective
+   (~$0.001 per analysis) and provides good color/branding extraction.
+
+4. **Captain's Log system**: Created to preserve knowledge across Claude sessions
+   and track work progress systematically.
+
+## Issues Encountered
+
+1. **413 Request Entity Too Large**: Base64 screenshots exceeded Next.js 1MB
+   default body limit. Fixed by adding `sizeLimit: '10mb'` to API config.
+
+2. **Git merge conflicts on Ubuntu**: Server had local changes conflicting with
+   master. Resolved with `git reset --hard origin/master`.
+
+3. **userData not reaching Botpress**: Initially tried passing via init() config,
+   but that stores in user.tags. Had to use updateUser() after init().
+
+4. **Webchat appearing too early**: Chat bubble showed before we were ready.
+   Added CSS hide rules and loading overlay during preload phase.
+
+## Commits Made
+- b816e16: Replace webchat loading overlay with megaman GIF
+- 6ca3be5: Add Botpress Handoff documentation and Captain's Log system
+- 3bfb07d: Fix: Increase body size limit for thumbnail analysis API
+- 8557adb: Add AI-powered dynamic webchat theming
+- c4a9668: Working USERDATA mode webchat integration
+- 1542186: Jank Worky release - Browser pool + Zapier cleanup
+- 3fb70bf: Improve webchat UX and scraper contact extraction
+- f7b02d9: Add SETTING_KB config for multiple context passing methods
+- 688ebf1: Critical fix: userData from init() is stored in user.tags
+- c99488f: Add KB file ID optimization - pass fileId directly for faster search
+
+## Mistakes & Lessons
+
+1. **Assumed init() userData would work**: Spent time debugging why userData
+   wasn't available in Botpress. Lesson: Read Botpress docs more carefully,
+   use updateUser() for runtime data.
+
+2. **Forgot about Next.js body limits**: Didn't anticipate 1MB limit for base64
+   images. Lesson: Always consider payload size for file uploads.
+
+3. **Overlay size mismatch**: Initially made overlay 240x240 but user wanted
+   exact chat bubble coverage (80x80). Lesson: Ask for specific sizing upfront.
+
+## OpenAI API Usage Investigation
+User noted no OpenAI usage in dashboard. Confirmed API calls should happen:
+- Thumbnail analysis: 1 call per new website (Vision API)
+- Snippet extraction: 1 call per scrape
+- FAQ generation: 1 call per scrape
+Total: ~3 calls per new website submission
+
+Possible reasons for no usage:
+- No new website submissions
+- Returning visitors bypass full flow
+- Ubuntu server missing OPENAI_API_KEY in .env
+
+## Next Steps
+- Verify OpenAI API key is configured on Ubuntu production server
+- Consider adding logging to confirm API calls are executing
+- Test full flow end-to-end with new domain
+- Potentially add API usage tracking/logging
+
+================================================================================
+END OF LOG
+================================================================================

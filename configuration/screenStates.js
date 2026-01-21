@@ -1,3 +1,5 @@
+import { CONFIG } from './masterConfig';
+
 export const SCREEN_STATES = {
     FORM: 'FORM',
     LOADING: 'LOADING',
@@ -14,5 +16,11 @@ export const BOTPRESS_STATUS = {
     ERROR: 'ERROR',
 };
 
-// Snippet display configuration
-export const SNIPPET_DISPLAY_TIME = 3000; // milliseconds per snippet
+// Re-export from master config for backward compatibility
+export const SNIPPET_DISPLAY_TIME = CONFIG.snippets.displayTimeMs;
+
+export const SCANNING_STAGE_CONFIG = {
+    delayMs: CONFIG.scanningStage.quoteDelayMs,
+    quotes: CONFIG.scanningStage.quotes,
+    steps: CONFIG.scanningStage.steps,
+};

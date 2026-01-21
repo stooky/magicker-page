@@ -6,6 +6,8 @@ import FormComponent from '../components/FormComponent';
 import LoadingComponent from '../components/LoadingComponent';
 import ScanningComponent from '../components/ScanningComponent';
 import Valhallah from '../components/Valhallah.js';
+import ThemeProvider from '../components/ThemeProvider';
+import { CONFIG } from '../configuration/masterConfig';
 import axios from 'axios';
 
 
@@ -89,12 +91,12 @@ const MainContainer = () => {
             document.head.appendChild(hideStyle);
             console.log('[WEBCHAT PRELOAD] Added hide CSS');
 
-            // Add loading overlay with megaman GIF to cover chat bubble
+            // Add loading overlay with animation to cover chat bubble
             const overlayBox = document.createElement('div');
             overlayBox.id = 'webchat-loading-overlay';
             overlayBox.innerHTML = `
                 <img
-                    src="/images/megaman.gif"
+                    src="${CONFIG.branding.loadingAnimationPath}"
                     alt="Loading..."
                     style="
                         position: fixed;
@@ -675,29 +677,30 @@ useEffect(() => {
 
 
     return (
-        <div className="full-screen-container">
-            {screenState === SCREEN_STATES.LOADING ? (
-                <LoadingComponent />
-            ) : screenState === SCREEN_STATES.SCANNING ? (
-                <ScanningComponent screenshotUrl={screenshotUrl} messageItems={messageItems} />
-            ) : screenState === SCREEN_STATES.CHAT_TEASE ? (
-                <Valhallah
-                    authToken={authToken}
-                    domain={domain}
-                    isReturning={isReturning}
-                    screenshotUrl={screenshotUrl}
-                    sessionID={sessionID}
-                    website={enteredWebsite}
-                    kbFileId={kbFileId}
-                    botTheme={botTheme}
-                />
-            ) : (
-                <div className="centered-content">
-                    <FormComponent onSubmit={handleSubmit} />
-                </div>
-            )}
-
-        </div>
+        <ThemeProvider>
+            <div className="full-screen-container">
+                {screenState === SCREEN_STATES.LOADING ? (
+                    <LoadingComponent />
+                ) : screenState === SCREEN_STATES.SCANNING ? (
+                    <ScanningComponent screenshotUrl={screenshotUrl} messageItems={messageItems} />
+                ) : screenState === SCREEN_STATES.CHAT_TEASE ? (
+                    <Valhallah
+                        authToken={authToken}
+                        domain={domain}
+                        isReturning={isReturning}
+                        screenshotUrl={screenshotUrl}
+                        sessionID={sessionID}
+                        website={enteredWebsite}
+                        kbFileId={kbFileId}
+                        botTheme={botTheme}
+                    />
+                ) : (
+                    <div className="centered-content">
+                        <FormComponent onSubmit={handleSubmit} />
+                    </div>
+                )}
+            </div>
+        </ThemeProvider>
     );
     
        

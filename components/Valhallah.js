@@ -6,6 +6,7 @@ import '../src/css/ai_agent.css';
 import '../src/css/weird_stuff.css';
 import '../src/css/style.css';
 import { DEBUG_BOTPRESS_REQUESTS, DEBUG_OPTIONS, SETTING_KB } from '../configuration/debugConfig';
+import { CONFIG } from '../configuration/masterConfig';
 
 // Simple terminal-style logging
 const log = (msg, data) => {
@@ -620,7 +621,7 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                 textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
             }}>
                 <p style={{ fontSize: '0.9rem' }}>
-                    Powered by Member Solutions | Copyright © 2025 | Privacy Policy | Legal
+                    {CONFIG.branding.poweredByText} | {CONFIG.branding.copyright} | {CONFIG.branding.legalLinks}
                 </p>
             </div>
         </div>

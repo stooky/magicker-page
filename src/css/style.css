@@ -7,6 +7,13 @@
   --header-text-color: #22292f;
   --subheading-text-color: #999999;
   --text-color: #5f6368;
+
+  /* Theme colors (overridden by masterConfig.js via ThemeProvider) */
+  --theme-primary: #E76F00;
+  --theme-secondary: #00234C;
+  --theme-accent: #F8A433;
+  --theme-gradient-start: #00234C;
+  --theme-gradient-end: #E76F00;
 }
 
 * {
@@ -39,7 +46,7 @@ body {
   width: 12em;
   height: 12em;
   border-radius: 50%;
-  background: #E76F00;
+  background: var(--theme-primary);
   position: relative;
 
   transform: scale(0.5);
@@ -49,7 +56,7 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: #E76F00;
+  background: var(--theme-primary);
   animation: 2s ease-in 0s infinite forwards inhale;
   position: absolute;
   inset: 0;
@@ -75,7 +82,7 @@ body {
 }
 
 .ai-orb__bg {
-  background: radial-gradient(#F8A433, transparent 80%);
+  background: radial-gradient(var(--theme-accent), transparent 80%);
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -107,7 +114,7 @@ body {
   height: 0.8em;
   border-radius: 50%;
   position: absolute;
-  background: #F48D03;
+  background: var(--theme-primary);
   z-index: 15;
   transform-origin: center;
   opacity: 0;
@@ -124,7 +131,7 @@ body {
   top: -1em;
   left: -2em;
   offset-path: path("M0.5 0.5L69.5 69.5");
-  background: #F8A433;
+  background: var(--theme-accent);
   animation-delay: 0.5s;
   transform: scale(0.75);
 }
@@ -142,7 +149,7 @@ body {
   left: 0;
   offset-path: path("M0.5 0.5L69.5 69.5");
   animation-delay: 1.3s;
-  background: #00234C;
+  background: var(--theme-secondary);
   transform: scale(0.6);
 }
 

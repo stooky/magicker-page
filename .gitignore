@@ -53,5 +53,8 @@ test-*.html
 Memby - */
 *.pdf
 
+# runtime generated data (kb files from scraping)
+/data/kb-files/
+
 # claude settings (local only)
 .claude/settings.local.json

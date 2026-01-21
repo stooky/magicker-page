@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { SNIPPET_DISPLAY_TIME } from '../configuration/screenStates';
+import { SNIPPET_DISPLAY_TIME, SCANNING_STAGE_CONFIG } from '../configuration/screenStates';
+import { CONFIG } from '../configuration/masterConfig';
 import '../src/css/main.css';
 import '../src/css/mockbox.css';
 import '../src/css/thumbnail.css';
@@ -10,16 +11,26 @@ import '../src/css/style.css';
 export default function ScanningComponent({ screenshotUrl, messageItems }) {
     const [activeStep, setActiveStep] = useState(0);
     const [currentMessageIndex, setCurrentMessageIndex] = useState(0);
-    const [messages, setMessages] = useState(['Building Your AI']); // Default title
+    const [currentHeaderIndex, setCurrentHeaderIndex] = useState(0);
+    const [messages, setMessages] = useState([]); // Snippet messages from scraped content
+
+    const { steps } = SCANNING_STAGE_CONFIG;
+
+    // Effect to cycle through header quotes (h2) - stops when snippets arrive
+    useEffect(() => {
+        // Don't cycle if we have snippet messages
+        if (messages.length > 0) return;
+
+        const interval = setInterval(() => {
+            setCurrentHeaderIndex(prevIndex =>
+                (prevIndex + 1) % SCANNING_STAGE_CONFIG.quotes.length
+            );
+        }, SCANNING_STAGE_CONFIG.delayMs);
+
+        return () => clearInterval(interval);
+    }, [messages.length]);
 
     useEffect(() => {
-        const steps = [
-            { name: 'Loading website', duration: 2000 },
-            { name: 'Scanning website', duration: 3000 },
-            { name: 'Generating AI Agent', duration: 4000 },
-            { name: 'Build preview', duration: 5000 }
-        ];
-
         let totalTime = 0;
 
         steps.forEach((step, index) => {
@@ -28,9 +39,9 @@ export default function ScanningComponent({ screenshotUrl, messageItems }) {
                 setActiveStep(index);
             }, totalTime);
         });
-    }, []);
+    }, [steps]);
 
-    // Effect to start cycling through messages from messageItems
+    // Effect to start cycling through snippet messages from messageItems
     useEffect(() => {
         if (messageItems && messageItems.length > 0) {
             setMessages(messageItems);
@@ -48,10 +59,13 @@ export default function ScanningComponent({ screenshotUrl, messageItems }) {
     return (
         <div className="magic_mock_body">
             <div className="mock_box">
-                {/* Conditionally render <h2> or <p> based on the message */}
-                {messages[currentMessageIndex] === 'Building Your AI' ? (
-                    <h2>{messages[currentMessageIndex]}</h2>
-                ) : (
+                {/* Header quote - cycles through configured quotes, hides when snippets arrive */}
+                {messages.length === 0 && (
+                    <h2>{SCANNING_STAGE_CONFIG.quotes[currentHeaderIndex]}</h2>
+                )}
+
+                {/* Snippet messages from scraped content */}
+                {messages.length > 0 && (
                     <h3>{messages[currentMessageIndex]}</h3>
                 )}
                 <br /><br />
@@ -66,26 +80,19 @@ export default function ScanningComponent({ screenshotUrl, messageItems }) {
     
             <div className="status_container">
                 <div className="status-list">
-                    <div className={`status-item ${activeStep >= 0 ? 'active' : ''}`}>
-                        <span className="bullet"></span> Loading website
-                    </div>
-                    <div className={`status-item ${activeStep >= 1 ? 'active' : ''}`}>
-                        <span className="bullet"></span> Scanning website
-                    </div>
-                    <div className={`status-item ${activeStep >= 2 ? 'active' : ''}`}>
-                        <span className="bullet"></span> Generating AI Agent
-                    </div>
-                    <div className={`status-item ${activeStep >= 3 ? 'active' : ''}`}>
-                        <span className="bullet"></span> Build preview
-                    </div>
+                    {steps.map((step, index) => (
+                        <div key={index} className={`status-item ${activeStep >= index ? 'active' : ''}`}>
+                            <span className="bullet"></span> {step.name}
+                        </div>
+                    ))}
                 </div>
             </div>
 
             <div className="footer">
                 <p className="foot_logo">
-                    <i> Powered by Member Solutions </i>
+                    <i> {CONFIG.branding.poweredByText} </i>
                 </p>
-                <p> Copyright © 2025  &nbsp; | &nbsp;  Privacy Policy &nbsp;  |  &nbsp; Legal </p>
+                <p> {CONFIG.branding.copyright} &nbsp; | &nbsp; {CONFIG.branding.legalLinks} </p>
             </div>
         </div>
     );

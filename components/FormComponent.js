@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { CONFIG } from '../configuration/masterConfig';
 import '../src/css/main.css';
 import '../src/css/mockbox.css';
 import '../src/css/thumbnail.css';
@@ -57,9 +58,9 @@ const FormComponent = ({ onSubmit }) => {
 
             <div className="footer">
                 <p className="foot_logo">
-                    <i> Powered by Member Solutions </i>
+                    <i> {CONFIG.branding.poweredByText} </i>
                 </p>
-                <p> Copyright © 2025  &nbsp; | &nbsp;  Privacy Policy &nbsp;  |  &nbsp; Legal </p>
+                <p> {CONFIG.branding.copyright} &nbsp; | &nbsp; {CONFIG.branding.legalLinks} </p>
             </div>
         </div>
     );
