@@ -14,7 +14,7 @@ export const CONFIG = {
         poweredByText: "Powered by Member Solutions... Boogedy",
         copyright: "Copyright © 2025",
         legalLinks: "Privacy Policy  |  Legal beeyatches",
-        loadingAnimationPath: "/images/onepunch.gif",
+        loadingAnimationPath: "/images/megaman.gif",
     },
 
     // -------------------------------------------------------------------------
