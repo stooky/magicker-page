@@ -45,7 +45,9 @@
       "WebFetch(domain:discord.botpress.com)",
       "WebFetch(domain:cdn.botpress.cloud)",
       "WebFetch(domain:files.bpcontent.cloud)",
-      "WebFetch(domain:www.restack.io)"
+      "WebFetch(domain:www.restack.io)",
+      "Bash(ssh:*)",
+      "Bash(scp:*)"
     ],
     "deny": [],
     "ask": []
