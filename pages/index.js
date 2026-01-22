@@ -422,6 +422,13 @@ useEffect(() => {
             return;
         }
 
+        // SEND SIGNUP NOTIFICATION (fire-and-forget, always runs)
+        fetch('/api/notify-signup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, website })
+        }).catch(err => console.log('Notification failed (non-critical):', err.message));
+
         // CHECK IF DOMAIN ALREADY EXISTS
         try {
             console.log('Checking if domain already exists...');
