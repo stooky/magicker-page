@@ -9,6 +9,7 @@ import Valhallah from '../components/Valhallah.js';
 import ThemeProvider from '../components/ThemeProvider';
 import { CONFIG } from '../configuration/masterConfig';
 import axios from 'axios';
+import { domainToSlug } from '../lib/slugUtils';
 
 
 const MainContainer = () => {
@@ -633,13 +634,16 @@ useEffect(() => {
                 setBotpressStatus(BOTPRESS_STATUS.CREATED); // JWT created, but wait for snippets
                 console.log('JWT token generated - waiting for KB ready and snippets to complete');
 
-                // Update database with domain info (non-critical)
+                // Update database with domain info and shareable config (non-critical)
                 try {
                     await axios.post('/api/dbUpdateVisitor', {
                         sessionID: sessionID,
-                        myListingUrl: JSON.stringify({ domain: domain, sessionID: sessionID })
+                        myListingUrl: JSON.stringify({ domain: domain, sessionID: sessionID }),
+                        slug: domainToSlug(domain),
+                        botTheme: botTheme,
+                        kbFileId: kbFileId
                     });
-                    console.log('Domain info saved to database');
+                    console.log('Domain info and shareable config saved to database');
                 } catch (error) {
                     console.log('Could not save to database (non-critical):', error.message);
                     // Continue anyway - database save is not critical for UX

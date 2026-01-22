@@ -279,6 +279,18 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                     }
                     log('Message sent successfully via FAST PATH!');
                     setUserDataConfirmed(true);
+
+                    // Trigger shareable link email (fire and forget)
+                    if (!window.__SHARE_EMAIL_TRIGGERED__ && sessionID) {
+                        window.__SHARE_EMAIL_TRIGGERED__ = true;
+                        fetch('/api/share/trigger-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ sessionID, domain })
+                        }).then(res => res.json())
+                          .then(data => log('Share email trigger response:', data))
+                          .catch(err => log('Share email trigger failed (non-critical):', err.message));
+                    }
                 } catch (e) {
                     log('ERROR sending via fast path:', e.message);
                 }
@@ -514,6 +526,18 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                     await bp.sendMessage(greeting);
                 }
                 log('Auto-greeting sent successfully');
+
+                // Trigger shareable link email (fire and forget)
+                if (!window.__SHARE_EMAIL_TRIGGERED__ && sessionID) {
+                    window.__SHARE_EMAIL_TRIGGERED__ = true;
+                    fetch('/api/share/trigger-email', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ sessionID, domain })
+                    }).then(res => res.json())
+                      .then(data => log('Share email trigger response:', data))
+                      .catch(err => log('Share email trigger failed (non-critical):', err.message));
+                }
 
                 // Final verification
                 try {

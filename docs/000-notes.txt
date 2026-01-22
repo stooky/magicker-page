@@ -1,0 +1,22 @@
+20260121
+  Pending:
+  - Push to GitHub (needs your manual authentication)
+  - Test deployment workflow
+
+  Rollback Reference (SAVE THIS):
+  Working commit: b816e16ae2ed683ae04841af7633d06decd17bb5
+  Rollback cmd:   git checkout b816e16 && pm2 restart magic-page
+
+  
+20251208
+Default Membersolutions colors        primaryColor: "#E76F00",      // Member Solutions orange
+        secondaryColor: "#00234C",    // Dark blue
+        accentColor: "#F8A433",       // Gold
+        gradientStart: "#00234C",     // Gradient background start (dark blue)
+        gradientEnd: "#E76F00",       // Gradient background end (orange)
+
+        
+20251206
+● Done. You're now on branch 20251206-looksies, branched from b816e16 (the megaman commit). Your uncommitted changes are stashed safely - you can       
+  get them back with git stash pop when needed.
+
