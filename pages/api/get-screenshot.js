@@ -1,3 +1,9 @@
+import fs from 'fs';
+import path from 'path';
+
+// Ensure screenshots directory exists
+const screenshotsDir = path.join(process.cwd(), 'public', 'screenshots');
+
 export default async function handler(req, res) {
     const { url, sessionID } = req.query;
 
@@ -52,9 +58,26 @@ export default async function handler(req, res) {
         const base64Image = buffer.toString('base64');
         const imageUrl = `data:image/png;base64,${base64Image}`;
 
+        // Save screenshot to disk for persistence
+        try {
+            if (!fs.existsSync(screenshotsDir)) {
+                fs.mkdirSync(screenshotsDir, { recursive: true });
+            }
+            const filename = `${sessionID}.png`;
+            const filepath = path.join(screenshotsDir, filename);
+            fs.writeFileSync(filepath, buffer);
+            console.log("Screenshot saved to:", filepath);
+        } catch (saveErr) {
+            console.log("Failed to save screenshot to disk (non-critical):", saveErr.message);
+        }
+
         // Return both the image and the sessionID for further processing
         console.log("Thumbnail successfully captured and generated.");
-        return res.status(200).json({ screenshotUrl: imageUrl, sessionID });
+        return res.status(200).json({
+            screenshotUrl: imageUrl,
+            screenshotPath: `/screenshots/${sessionID}.png`,
+            sessionID
+        });
     } catch (error) {
         console.error("Failed to fetch screenshot:", error);
         return res.status(500).json({ error: "Failed to fetch screenshot" });

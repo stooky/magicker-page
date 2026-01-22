@@ -537,7 +537,7 @@ useEffect(() => {
                 window.__BOTPRESS_THEME__ = DEFAULT_BOT_THEME;
             }
 
-            // Insert the visitor data into the database (skip screenshot - too large)
+            // Insert the visitor data into the database
             try {
                 console.log('Inserting visitor:', sessionID, email, website, companyName);
                 await axios.post('/api/dbInsertVisitor', {
@@ -546,7 +546,7 @@ useEffect(() => {
                     website: website,
                     companyName: companyName,
                     myListingUrl: "EMPTY",
-                    screenshotUrl: "TEMP_URL", // TODO: Store screenshot separately
+                    screenshotUrl: screenshotData.screenshotPath || `/screenshots/${sessionID}.png`,
                 });
                 console.log('Visitor inserted successfully:', sessionID);
             } catch (error) {

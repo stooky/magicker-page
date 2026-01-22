@@ -1,5 +1,5 @@
 // pages/api/notify-signup.js
-// Simple endpoint to send signup notifications via email
+// Send signup notifications: one to admin, one to submitter
 const { Resend } = require('resend');
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
@@ -12,30 +12,53 @@ export default async function handler(req, res) {
     const { email, website } = req.body;
     console.log('[notify-signup] Called with:', { email, website });
 
-    const notifyTo = process.env.NOTIFY_EMAIL;
-
     if (!resend) {
         console.log('[notify-signup] Resend not configured (missing RESEND_API_KEY)');
         return res.status(200).json({ success: false, reason: 'email not configured' });
     }
 
-    if (!notifyTo) {
-        console.log('[notify-signup] NOTIFY_EMAIL not set');
-        return res.status(200).json({ success: false, reason: 'NOTIFY_EMAIL not set' });
+    const fromAddress = process.env.EMAIL_FROM || 'Magic Page <noreply@membies.com>';
+    const notifyTo = process.env.NOTIFY_EMAIL;
+    const results = { admin: null, user: null };
+
+    // 1. Send notification to admin
+    if (notifyTo) {
+        try {
+            console.log('[notify-signup] Sending admin notification to:', notifyTo);
+            results.admin = await resend.emails.send({
+                from: fromAddress,
+                to: notifyTo,
+                subject: `New Magic Page Signup: ${website}`,
+                text: `New signup!\n\nEmail: ${email}\nWebsite: ${website}\n\nTime: ${new Date().toISOString()}`
+            });
+            console.log('[notify-signup] Admin email sent:', results.admin.id);
+        } catch (err) {
+            console.log('[notify-signup] Admin email failed:', err.message);
+        }
     }
 
-    try {
-        console.log('[notify-signup] Sending to:', notifyTo);
-        const result = await resend.emails.send({
-            from: process.env.EMAIL_FROM || 'Magic Page <noreply@membies.com>',
-            to: notifyTo,
-            subject: `New Magic Page Signup: ${website}`,
-            text: `New signup!\n\nEmail: ${email}\nWebsite: ${website}\n\nTime: ${new Date().toISOString()}`
-        });
-        console.log('[notify-signup] Email sent successfully:', result);
-        return res.status(200).json({ success: true, id: result.id });
-    } catch (err) {
-        console.log('[notify-signup] Failed to send:', err.message);
-        return res.status(200).json({ success: false, error: err.message });
+    // 2. Send confirmation to the user who submitted
+    if (email && email.includes('@')) {
+        try {
+            console.log('[notify-signup] Sending confirmation to user:', email);
+            results.user = await resend.emails.send({
+                from: fromAddress,
+                to: email,
+                subject: `Your AI Chatbot for ${website} is Being Created!`,
+                html: `
+                    <h2>Thanks for trying Magic Page!</h2>
+                    <p>We're building an AI chatbot for <strong>${website}</strong>.</p>
+                    <p>Your chatbot will be ready in just a moment. Stay on the page to see it in action!</p>
+                    <br>
+                    <p>- The Member Solutions Team</p>
+                `,
+                text: `Thanks for trying Magic Page!\n\nWe're building an AI chatbot for ${website}.\n\nYour chatbot will be ready in just a moment. Stay on the page to see it in action!\n\n- The Member Solutions Team`
+            });
+            console.log('[notify-signup] User email sent:', results.user.id);
+        } catch (err) {
+            console.log('[notify-signup] User email failed:', err.message);
+        }
     }
+
+    return res.status(200).json({ success: true, results });
 }
