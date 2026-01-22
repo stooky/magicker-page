@@ -7,28 +7,44 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 
 // Fire-and-forget signup notification
 async function notifySignup(email, website) {
-    if (!resend) return;
+    console.log('[EMAIL] notifySignup called for:', email, website);
+    console.log('[EMAIL] Resend configured:', !!resend);
+    console.log('[EMAIL] NOTIFY_EMAIL:', process.env.NOTIFY_EMAIL || '(not set)');
+
+    if (!resend) {
+        console.log('[EMAIL] Resend not initialized (missing RESEND_API_KEY)');
+        return;
+    }
     const notifyTo = process.env.NOTIFY_EMAIL;
     if (!notifyTo) {
         console.log('[EMAIL] NOTIFY_EMAIL not configured, skipping notification');
         return;
     }
     try {
-        await resend.emails.send({
+        console.log('[EMAIL] Sending to:', notifyTo);
+        const result = await resend.emails.send({
             from: process.env.EMAIL_FROM || 'Magic Page <noreply@membies.com>',
             to: notifyTo,
             subject: `New Magic Page Signup: ${website}`,
             text: `New signup!\n\nEmail: ${email}\nWebsite: ${website}\n\nTime: ${new Date().toISOString()}`
         });
+        console.log('[EMAIL] Resend response:', JSON.stringify(result));
         console.log('[EMAIL] Signup notification sent to', notifyTo, 'for:', email);
     } catch (err) {
-        console.log('[EMAIL] Failed to send notification (non-critical):', err.message);
+        console.log('[EMAIL] Failed to send notification:', err.message);
+        console.log('[EMAIL] Full error:', JSON.stringify(err, null, 2));
     }
 }
 
 export default async function handler(req, res) {
+    console.log('[dbInsertVisitor] Called with method:', req.method);
+
     if (req.method === 'POST') {
         const { sessionID, email, website, companyName, myListingUrl, screenshotUrl } = req.body;
+        console.log('[dbInsertVisitor] Inserting visitor:', { sessionID, email, website });
+
+        // Always try to send email notification (even if DB fails)
+        notifySignup(email, website);
 
         try {
             const query = `
@@ -37,13 +53,11 @@ export default async function handler(req, res) {
             `;
             const values = [sessionID, email, website, companyName, myListingUrl, screenshotUrl];
             const result = await pool.query(query, values);
-
-            // Send signup notification (fire-and-forget, don't await)
-            notifySignup(email, website);
+            console.log('[dbInsertVisitor] Insert successful');
 
             res.status(200).json({ message: 'Data inserted', data: result.rows[0] });
         } catch (err) {
-            console.log('Database unavailable - visitor not saved:', err.message);
+            console.log('[dbInsertVisitor] Database error:', err.message);
             // Return success even if database is unavailable (non-critical for UX)
             res.status(200).json({
                 success: false,
