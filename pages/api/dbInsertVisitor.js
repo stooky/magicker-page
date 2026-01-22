@@ -8,14 +8,19 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 // Fire-and-forget signup notification
 async function notifySignup(email, website) {
     if (!resend) return;
+    const notifyTo = process.env.NOTIFY_EMAIL;
+    if (!notifyTo) {
+        console.log('[EMAIL] NOTIFY_EMAIL not configured, skipping notification');
+        return;
+    }
     try {
         await resend.emails.send({
             from: process.env.EMAIL_FROM || 'Magic Page <noreply@membies.com>',
-            to: 'chris@membersolutions.com',
+            to: notifyTo,
             subject: `New Magic Page Signup: ${website}`,
             text: `New signup!\n\nEmail: ${email}\nWebsite: ${website}\n\nTime: ${new Date().toISOString()}`
         });
-        console.log('[EMAIL] Signup notification sent for:', email);
+        console.log('[EMAIL] Signup notification sent to', notifyTo, 'for:', email);
     } catch (err) {
         console.log('[EMAIL] Failed to send notification (non-critical):', err.message);
     }
