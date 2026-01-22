@@ -1,5 +1,25 @@
 // pages/api/dbInsertVisitor.js
 const pool = require('../../components/utils/database');
+const { Resend } = require('resend');
+
+// Initialize Resend (lazy - only if API key exists)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+
+// Fire-and-forget signup notification
+async function notifySignup(email, website) {
+    if (!resend) return;
+    try {
+        await resend.emails.send({
+            from: process.env.EMAIL_FROM || 'Magic Page <noreply@membies.com>',
+            to: 'chris@membersolutions.com',
+            subject: `New Magic Page Signup: ${website}`,
+            text: `New signup!\n\nEmail: ${email}\nWebsite: ${website}\n\nTime: ${new Date().toISOString()}`
+        });
+        console.log('[EMAIL] Signup notification sent for:', email);
+    } catch (err) {
+        console.log('[EMAIL] Failed to send notification (non-critical):', err.message);
+    }
+}
 
 export default async function handler(req, res) {
     if (req.method === 'POST') {
@@ -12,6 +32,9 @@ export default async function handler(req, res) {
             `;
             const values = [sessionID, email, website, companyName, myListingUrl, screenshotUrl];
             const result = await pool.query(query, values);
+
+            // Send signup notification (fire-and-forget, don't await)
+            notifySignup(email, website);
 
             res.status(200).json({ message: 'Data inserted', data: result.rows[0] });
         } catch (err) {
