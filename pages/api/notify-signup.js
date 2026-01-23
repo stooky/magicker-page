@@ -17,7 +17,9 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: false, reason: 'email not configured' });
     }
 
-    const fromAddress = process.env.EMAIL_FROM || 'Magic Page <noreply@membies.com>';
+    // Use verified domain or Resend's test address
+    // NOTE: membies.com must be verified at https://resend.com/domains for production
+    const fromAddress = process.env.EMAIL_FROM || 'onboarding@resend.dev';
     const notifyTo = process.env.NOTIFY_EMAIL;
     const results = { admin: null, user: null };
 
