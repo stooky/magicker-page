@@ -25,15 +25,18 @@ export default async function handler(req, res) {
     if (notifyTo) {
         try {
             console.log('[notify-signup] Sending admin notification to:', notifyTo);
-            results.admin = await resend.emails.send({
+            console.log('[notify-signup] From address:', fromAddress);
+            const adminResult = await resend.emails.send({
                 from: fromAddress,
                 to: notifyTo,
                 subject: `New Magic Page Signup: ${website}`,
                 text: `New signup!\n\nEmail: ${email}\nWebsite: ${website}\n\nTime: ${new Date().toISOString()}`
             });
-            console.log('[notify-signup] Admin email sent:', results.admin.id);
+            console.log('[notify-signup] Admin email result:', JSON.stringify(adminResult));
+            results.admin = adminResult;
         } catch (err) {
             console.log('[notify-signup] Admin email failed:', err.message);
+            console.log('[notify-signup] Admin email error details:', JSON.stringify(err));
         }
     }
 
@@ -41,7 +44,7 @@ export default async function handler(req, res) {
     if (email && email.includes('@')) {
         try {
             console.log('[notify-signup] Sending confirmation to user:', email);
-            results.user = await resend.emails.send({
+            const userResult = await resend.emails.send({
                 from: fromAddress,
                 to: email,
                 subject: `Your AI Chatbot for ${website} is Being Created!`,
@@ -54,9 +57,11 @@ export default async function handler(req, res) {
                 `,
                 text: `Thanks for trying Magic Page!\n\nWe're building an AI chatbot for ${website}.\n\nYour chatbot will be ready in just a moment. Stay on the page to see it in action!\n\n- The Member Solutions Team`
             });
-            console.log('[notify-signup] User email sent:', results.user.id);
+            console.log('[notify-signup] User email result:', JSON.stringify(userResult));
+            results.user = userResult;
         } catch (err) {
             console.log('[notify-signup] User email failed:', err.message);
+            console.log('[notify-signup] User email error details:', JSON.stringify(err));
         }
     }
 
