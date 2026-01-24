@@ -87,7 +87,7 @@ const DEFAULT_BOT_THEME = {
     description: 'Your friendly assistant'
 };
 
-export default function Valhallah({ authToken, domain, isReturning, screenshotUrl, sessionID, website, kbFileId, botTheme = DEFAULT_BOT_THEME }) {
+export default function Valhallah({ authToken, domain, isReturning, isShareableLink = false, screenshotUrl, sessionID, website, kbFileId, botTheme = DEFAULT_BOT_THEME }) {
     const hasInitialized = useRef(false);
     const [chatReady, setChatReady] = useState(false);
     const [fadeIn, setFadeIn] = useState(false);
@@ -99,6 +99,10 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
         window.__MAGIC_PAGE_WEBSITE__ = website;
         window.__MAGIC_PAGE_SESSION__ = sessionID;
         window.__MAGIC_PAGE_KB_FILE_ID__ = kbFileId;
+        // For shareable links, force full init path (not preloaded)
+        if (isShareableLink) {
+            window.__BOTPRESS_PRELOADED__ = false;
+        }
     }
 
     // Log on first mount
@@ -111,6 +115,7 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
             sessionID: sessionID || 'NOT PROVIDED',
             kbFileId: kbFileId || 'NOT PROVIDED',
             isReturning,
+            isShareableLink,
             hasScreenshot: !!screenshotUrl,
             botTheme: botTheme?.name || 'DEFAULT'
         });

@@ -14,6 +14,7 @@ export default function ShareableChatbot() {
     const [error, setError] = useState(null);
     const [config, setConfig] = useState(null);
     const [authToken, setAuthToken] = useState(null);
+    const [showChat, setShowChat] = useState(false); // Delay showing chat for botpress init
 
     useEffect(() => {
         if (!slug) return;
@@ -52,6 +53,12 @@ export default function ShareableChatbot() {
                 }
 
                 setLoading(false);
+
+                // Add delay before showing chat to allow botpress to initialize
+                // This mimics the "scanning" phase delay from the main flow
+                setTimeout(() => {
+                    setShowChat(true);
+                }, 2500); // 2.5 second delay for initialization
             } catch (err) {
                 console.error('[slug] Error loading config:', err);
                 setError('Failed to load chatbot');
@@ -162,6 +169,60 @@ export default function ShareableChatbot() {
         ? `Chat with ${config.companyName}'s AI Assistant`
         : `AI Chatbot for ${config.domain}`;
 
+    // Show initializing screen while waiting for botpress to be ready
+    if (!showChat) {
+        return (
+            <div className="share-initializing">
+                <Head>
+                    <title>{pageTitle}</title>
+                </Head>
+                <style jsx>{`
+                    .share-initializing {
+                        min-height: 100vh;
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        justify-content: center;
+                        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                        color: white;
+                        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        text-align: center;
+                    }
+                    .init-icon {
+                        font-size: 64px;
+                        margin-bottom: 20px;
+                        animation: pulse 1.5s ease-in-out infinite;
+                    }
+                    @keyframes pulse {
+                        0%, 100% { transform: scale(1); opacity: 1; }
+                        50% { transform: scale(1.1); opacity: 0.8; }
+                    }
+                    .init-title {
+                        font-size: 24px;
+                        margin-bottom: 10px;
+                        color: #E76F00;
+                    }
+                    .init-subtitle {
+                        font-size: 16px;
+                        opacity: 0.7;
+                    }
+                    .init-domain {
+                        font-size: 18px;
+                        margin-top: 20px;
+                        padding: 10px 20px;
+                        background: rgba(231, 111, 0, 0.2);
+                        border-radius: 8px;
+                        color: #E76F00;
+                    }
+                `}</style>
+                <div className="init-icon">🤖</div>
+                <h1 className="init-title">Starting AI Assistant</h1>
+                <p className="init-subtitle">Preparing your personalized chatbot...</p>
+                <div className="init-domain">{config.domain}</div>
+            </div>
+        );
+    }
+
     return (
         <div className="share-page">
             <Head>
@@ -186,7 +247,8 @@ export default function ShareableChatbot() {
             <Valhallah
                 authToken={authToken}
                 domain={config.domain}
-                isReturning={true}
+                isReturning={false}
+                isShareableLink={true}
                 screenshotUrl={config.screenshotUrl}
                 sessionID={config.sessionId}
                 website={config.website}
