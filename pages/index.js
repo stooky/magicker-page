@@ -429,6 +429,17 @@ useEffect(() => {
             body: JSON.stringify({ email, website })
         }).catch(err => console.log('Notification failed (non-critical):', err.message));
 
+        // Extract domain from website URL (used throughout the flow)
+        const extractDomain = (url) => {
+            try {
+                return new URL(url).hostname.replace('www.', '');
+            } catch (e) {
+                return url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
+            }
+        };
+        const websiteDomain = extractDomain(website);
+        console.log('Extracted domain:', websiteDomain);
+
         // CHECK IF DOMAIN ALREADY EXISTS
         try {
             console.log('Checking if domain already exists...');
@@ -478,17 +489,7 @@ useEffect(() => {
                     setIsLoading(false);
                     setIsScanning(false);
 
-                    // Extract domain from website
-                    const extractDomain = (url) => {
-                        try {
-                            return new URL(url).hostname.replace('www.', '');
-                        } catch (e) {
-                            return url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
-                        }
-                    };
-                    const websiteDomain = extractDomain(website);
-
-                    // Generate JWT token for existing domain
+                    // Generate JWT token for existing domain (websiteDomain already defined above)
                     const tokenResponse = await fetch('/api/botpress/get-auth-token', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -606,14 +607,7 @@ useEffect(() => {
 
             // Create Knowledge Base with full scraped content
             console.log('Creating Knowledge Base...');
-            const extractDomain = (url) => {
-                try {
-                    return new URL(url).hostname.replace('www.', '');
-                } catch (e) {
-                    return url.replace(/^https?:\/\/(www\.)?/, '').split('/')[0];
-                }
-            };
-            const domain = extractDomain(website);
+            const domain = websiteDomain; // Already extracted at start of handleSubmit
 
             const kbResponse = await fetch('/api/botpress/kb-create', {
                 method: 'POST',
