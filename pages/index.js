@@ -427,13 +427,6 @@ useEffect(() => {
             return;
         }
 
-        // SEND SIGNUP NOTIFICATION (fire-and-forget, always runs)
-        fetch('/api/notify-signup', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, website })
-        }).catch(err => console.log('Notification failed (non-critical):', err.message));
-
         // Extract domain from website URL (used throughout the flow)
         const extractDomain = (url) => {
             try {
@@ -533,6 +526,13 @@ useEffect(() => {
             }
 
             console.log('Domain is new, proceeding with full flow...');
+
+            // SEND SIGNUP NOTIFICATION (only for NEW domains - returning visitors get shareable link email via /api/share/subscribe)
+            fetch('/api/notify-signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, website })
+            }).catch(err => console.log('Notification failed (non-critical):', err.message));
         } catch (error) {
             console.error('Error checking domain:', error);
             // Continue with normal flow if check fails
