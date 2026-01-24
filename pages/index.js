@@ -447,8 +447,31 @@ useEffect(() => {
                     console.log('Could not parse existing bot config, will create new session');
                 }
 
-                // Set the screenshot
-                setScreenshotUrl(existingData.screenshoturl);
+                // Set the screenshot - fetch fresh if missing or invalid
+                let screenshotToUse = existingData.screenshoturl;
+                if (!screenshotToUse || screenshotToUse === 'TEMP_URL' || !screenshotToUse.startsWith('/screenshots/')) {
+                    console.log('Screenshot missing or invalid, fetching fresh screenshot...');
+                    try {
+                        const freshScreenshot = await fetch(`/api/get-screenshot?url=${encodeURIComponent(website)}&sessionID=${existingData.sessionid}`);
+                        const freshData = await freshScreenshot.json();
+                        if (freshData.screenshotPath) {
+                            screenshotToUse = freshData.screenshotPath;
+                            console.log('Fresh screenshot captured:', screenshotToUse);
+                            // Update database with new screenshot (fire-and-forget)
+                            fetch('/api/dbUpdateVisitor', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    sessionID: existingData.sessionid,
+                                    screenshotUrl: screenshotToUse
+                                })
+                            }).catch(() => {});
+                        }
+                    } catch (err) {
+                        console.log('Failed to fetch fresh screenshot:', err.message);
+                    }
+                }
+                setScreenshotUrl(screenshotToUse);
 
                 // If domain exists, generate JWT token for existing domain
                 if (existingBotConfig) {

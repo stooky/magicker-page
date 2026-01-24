@@ -17,11 +17,20 @@ export default async function handler(req, res) {
                 .replace(/^www\./, '')
                 .replace(/\/$/, '');
 
+            // Prefer records with valid bot config (mylistingurl is JSON, not EMPTY)
+            // Convert screenshoturl from bytea to text if needed
             const query = `
-                SELECT sessionid, email, website, companyname, mylistingurl, screenshoturl, created_at
+                SELECT sessionid, email, website, companyname, mylistingurl,
+                    CASE
+                        WHEN screenshoturl IS NULL THEN NULL
+                        ELSE convert_from(screenshoturl::bytea, 'UTF8')
+                    END as screenshoturl,
+                    created_at
                 FROM websitevisitors
                 WHERE REPLACE(REPLACE(REPLACE(website, 'http://', ''), 'https://', ''), 'www.', '') LIKE $1
-                ORDER BY created_at DESC
+                ORDER BY
+                    CASE WHEN mylistingurl IS NOT NULL AND mylistingurl != 'EMPTY' AND mylistingurl LIKE '{%' THEN 0 ELSE 1 END,
+                    created_at DESC
                 LIMIT 1;
             `;
 

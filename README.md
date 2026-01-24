@@ -1,200 +1,171 @@
-# Magic Page - AI Chatbot Lead Capture
+```
+===============================================================================
 
-Transform any website into an intelligent AI-powered lead capture system in seconds. Built with Next.js and Botpress Cloud.
+    ███╗   ███╗ █████╗  ██████╗ ██╗ ██████╗    ██████╗  █████╗  ██████╗ ███████╗
+    ████╗ ████║██╔══██╗██╔════╝ ██║██╔════╝    ██╔══██╗██╔══██╗██╔════╝ ██╔════╝
+    ██╔████╔██║███████║██║  ███╗██║██║         ██████╔╝███████║██║  ███╗█████╗
+    ██║╚██╔╝██║██╔══██║██║   ██║██║██║         ██╔═══╝ ██╔══██║██║   ██║██╔══╝
+    ██║ ╚═╝ ██║██║  ██║╚██████╔╝██║╚██████╗    ██║     ██║  ██║╚██████╔╝███████╗
+    ╚═╝     ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═╝ ╚═════╝    ╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
 
-## 🚀 Overview
+                    [ AI Chatbot Generation • Lead Capture ]
 
-Magic Page is a revolutionary lead generation tool that automatically creates AI chatbots for websites. Simply enter a website URL and email address, and watch as the system:
+                         "Enter a URL. Get a chatbot."
 
-1. **Scrapes** the website content intelligently
-2. **Extracts** key information using OpenAI GPT-4
-3. **Creates** a Botpress Cloud chatbot trained on the website
-4. **Captures** leads through conversational AI
+                              Est. 2025 • v2.0
 
-Powered by **Member Solutions** | Copyright © 2025
+===============================================================================
+```
 
-## ✨ Features
+## What This Does
 
-### Core Functionality
-- **One-Click Bot Creation**: Generate AI chatbots from any website URL
-- **Intelligent Scraping**: Multi-strategy web scraping with Playwright, Cheerio, and custom parsers
-- **AI-Powered Extraction**: OpenAI GPT-4 intelligently extracts relevant snippets from web content
-- **Lead Capture**: Automated lead collection with PostgreSQL storage
-- **Domain Deduplication**: Prevents duplicate bot creation for the same domain
-- **Beautiful UI**: Member Solutions branded interface with animated AI orb
+Magic Page takes any website URL and creates a trained AI chatbot for it in under 60 seconds.
 
-### Technical Features
-- **Botpress Cloud Integration**: Enterprise-grade chatbot platform
-- **PostgreSQL Database**: Reliable data persistence with Docker support
-- **Next.js 14**: Modern React framework with API routes
-- **Graceful Degradation**: Continues working even if database is unavailable
-- **Screenshot Capture**: Automatic website screenshots for visual context
-- **Real-time Progress**: Live updates during bot creation process
+The system scrapes the website, extracts business information using GPT-4, uploads it to Botpress Cloud as a knowledge base, and presents a fully functional chatbot widget. Visitors can immediately start asking questions about the business.
 
-## 🛠️ Technology Stack
+**Live at:** https://mb.membies.com
 
-- **Frontend**: Next.js 14.2.3, React 18
-- **Backend**: Next.js API Routes, Node.js
-- **Database**: PostgreSQL 14 (Docker)
-- **AI/ML**: OpenAI GPT-4, Botpress Cloud
-- **Scraping**: Playwright, Cheerio, Axios
-- **Styling**: CSS3 with custom animations
-- **DevOps**: Docker Compose, PowerShell automation
+## How It Works
 
-## 📋 Prerequisites
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   SUBMIT    │───▶│   SCRAPE    │───▶│   TRAIN     │───▶│    CHAT     │
+│  url+email  │    │  website    │    │  botpress   │    │   widget    │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+      │                  │                  │                  │
+      ▼                  ▼                  ▼                  ▼
+  Validate          Playwright         Upload KB          JWT Auth
+  Dedupe            Cheerio            Index docs         Theme bot
+  Screenshot        GPT-4 extract      Wait ready         Show chat
+```
 
-- Node.js 16+ and npm
-- Docker Desktop (for PostgreSQL)
-- OpenAI API Key
-- Botpress Cloud Account
-- Screenshot API Token (screenshotapi.net)
+**Step 1: Submit** — User enters website URL and email. System checks for duplicates, captures screenshot, sends notification email.
 
-## 🚀 Quick Start
+**Step 2: Scrape** — Playwright renders JavaScript-heavy sites. Cheerio parses static HTML. GPT-4 extracts the useful bits: company name, services, contact info, FAQs.
 
-### 1. Clone the Repository
+**Step 3: Train** — Content uploads to Botpress Cloud as a knowledge base file. System polls until indexing completes. Bot theme generated from website colors.
+
+**Step 4: Chat** — JWT token generated. Botpress webchat widget loads with custom theming. User can immediately ask questions about the business.
+
+## The Stack
+
+| Layer | Technology | Why |
+|-------|------------|-----|
+| Framework | Next.js 14 (Pages Router) | API routes + React in one package |
+| Database | PostgreSQL 14 | Stores visitors, sessions, bot configs |
+| AI | OpenAI GPT-4o-mini | Content extraction, FAQ generation, theme analysis |
+| Chatbot | Botpress Cloud | Enterprise chatbot platform with KB support |
+| Scraping | Playwright + Cheerio | JS rendering + fast HTML parsing |
+| Email | Resend | Transactional email (notifications, confirmations) |
+| Screenshots | screenshotapi.net | Website thumbnail capture |
+| Process | PM2 | Production process management |
+| Proxy | Nginx | SSL termination, reverse proxy |
+
+## Running Locally
 
 ```bash
+# Clone and install
 git clone https://github.com/stooky/magicker-page.git
 cd magicker-page
-```
-
-### 2. Install Dependencies
-
-```bash
 npm install
-```
 
-### 3. Configure Environment Variables
-
-Copy the sample environment file and configure it:
-
-```bash
-cp .env.local.sample .env.local
-```
-
-Edit `.env.local` with your credentials:
-
-```env
-# Domain Settings
-DOMAIN=localhost
-NEXT_PUBLIC_DOMAIN=localhost:3000
-
-# Botpress Configuration
-BOTPRESS_SERVER_URL=https://chat.botpress.cloud
-BOTPRESS_BOT_ID=your-bot-id-here
-BOTPRESS_CLIENT_ID=your-client-id-here
-BOTPRESS_WEBHOOK_SECRET=your-webhook-secret
-
-# PostgreSQL
-DB_USER=postgres
-DB_HOST=localhost
-DB_PASSWORD=magicpage_password
-DB=mp
-DB_PORT=5433
-
-# OpenAI
-OPENAI_API_KEY=sk-your-openai-api-key-here
-OPENAI_MODEL=gpt-4o-mini
-USE_OPENAI_EXTRACTION=true
-
-# Screenshot API
-SCREENSHOTAPI_TOKEN=your-screenshotapi-token
-```
-
-### 4. Start the Database
-
-```bash
-docker-compose up -d postgres
-```
-
-Or use the database-only configuration:
-
-```bash
+# Start database
 docker-compose -f docker-compose-db-only.yml up -d
-```
 
-### 5. Initialize the Database
+# Configure environment
+cp .env.local.sample .env.local
+# Edit .env.local with your API keys
 
-```bash
-# Connect to PostgreSQL and create the database
-docker exec -it botpress_postgres psql -U postgres -c "CREATE DATABASE mp;"
-
-# Run the schema updates
-docker exec -i botpress_postgres psql -U postgres -d mp < scripts/update_database_for_botpress.sql
-```
-
-### 6. Start the Development Server
-
-#### Option A: Using PowerShell (Windows - Recommended)
-```powershell
-.\start-dev.ps1
-```
-
-#### Option B: Using npm directly
-```bash
+# Run development server
 npm run dev
 ```
 
-The application will be available at `http://localhost:3000`
+Open http://localhost:3000
 
-## 🚀 Deployment
+## Environment Variables
 
-Magic Page supports two deployment options:
+```env
+# Required
+OPENAI_API_KEY=sk-...                    # GPT-4 for content extraction
+BOTPRESS_BOT_ID=...                      # Your Botpress bot ID
+BOTPRESS_CLIENT_ID=...                   # Botpress workspace ID
+BOTPRESS_API_TOKEN=bp_pat_...            # Botpress Personal Access Token
+SCREENSHOTAPI_TOKEN=...                  # screenshotapi.net token
+JWT_SECRET=...                           # 64-char hex string for auth tokens
 
-### Ubuntu Server (Production) ✅ RECOMMENDED
-- **Best for:** Production deployments on Vultr, DigitalOcean, AWS, etc.
-- **Setup time:** 45-60 minutes with full automation
-- **Features:** PM2 process management, auto SSL, health monitoring, automated backups
-- **Cost:** $12-24/month
-- **[→ Ubuntu Deployment Guide](./deploy/ubuntu/README.md)**
+# Database
+DB_HOST=localhost
+DB_PORT=5433
+DB_USER=postgres
+DB_PASSWORD=magicpage_password
+DB=mp
 
-### Windows Self-Hosted (Development)
-- **Best for:** Local development, testing, Windows servers
-- **Setup time:** 30-45 minutes
-- **Features:** PowerShell automation, Docker Desktop integration
-- **Cost:** Free (use your own hardware)
-- **[→ Windows Deployment Guide](./deploy/windows/README.md)**
+# Email (Resend)
+RESEND_API_KEY=re_...                    # From resend.com
+EMAIL_FROM="Magic Page <noreply@yourdomain.com>"
+NOTIFY_EMAIL=admin@yourdomain.com        # Where to send signup alerts
 
-**Not sure?** See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed comparison.
+# Optional
+SHARE_LINK_BASE_URL=https://mb.membies.com
+```
 
-## 📖 Documentation
+## Production Deployment
 
-Comprehensive documentation is available in the following guides:
+The production server runs on Ubuntu with Nginx + PM2.
 
-### Deployment Documentation
-- **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - Choose your deployment platform
-- **[deploy/ubuntu/README.md](./deploy/ubuntu/README.md)** - Ubuntu server deployment
-- **[deploy/windows/README.md](./deploy/windows/README.md)** - Windows self-hosted setup
-- **[deploy/ENVIRONMENT_SETUP.md](./deploy/ENVIRONMENT_SETUP.md)** - Environment variables reference
+```bash
+# SSH to server
+ssh -i ~/.ssh/id_wiki root@mb.membies.com
 
-### Setup & Configuration
-- **[QUICKSTART.md](./QUICKSTART.md)** - Get up and running in 5 minutes
-- **[DATABASE_SETUP.md](./DATABASE_SETUP.md)** - Detailed database configuration
-- **[SCRAPER_SETUP.md](./SCRAPER_SETUP.md)** - Web scraping system setup
-- **[BOTPRESS_MIGRATION.md](./BOTPRESS_MIGRATION.md)** - Migration from Vendasta to Botpress
+# App location
+cd /root/magicker-page
 
-### Testing & Implementation
-- **[TESTING_GUIDE.md](./TESTING_GUIDE.md)** - QA workflows and testing procedures
-- **[IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md)** - Deployment checklist
-- **[README-BOTPRESS.md](./README-BOTPRESS.md)** - Botpress integration details
+# Rebuild and restart
+source /root/.nvm/nvm.sh
+npm run build
+pm2 restart magic-page
 
-## 🏗️ Architecture
+# View logs
+pm2 logs magic-page --lines 100 --nostream
+```
 
-### Frontend Flow
-1. User enters email and website URL
-2. Loading screen with AI orb animation
-3. Scanning screen showing website thumbnail and extracted snippets
-4. Final screen with chatbot widget ready for interaction
+### Server Architecture
 
-### Backend Flow
-1. **Domain Check** (`/api/dbCheckDomain`) - Prevent duplicates
-2. **Screenshot Capture** (`/api/get-screenshot`) - Visual representation
-3. **Web Scraping** (`/api/scrape-website`) - Content extraction
-4. **Database Insert** (`/api/dbInsertVisitor`) - Store visitor data
-5. **Botpress Session** (`/api/botpress/create-session`) - Create chatbot
-6. **Database Update** (`/api/dbUpdateVisitor`) - Store bot config
+```
+Internet → Nginx (SSL) → localhost:3000 → Next.js (PM2)
+                                              ↓
+                                         PostgreSQL :5433
+```
 
-### Database Schema
+Nginx handles SSL termination and proxies to the Next.js app. PM2 keeps the process alive and manages restarts.
+
+## API Endpoints
+
+### Core Flow
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/dbCheckDomain` | POST | Check if domain already processed |
+| `/api/get-screenshot` | GET | Capture website thumbnail |
+| `/api/scrape-website` | POST | Extract content with GPT-4 |
+| `/api/dbInsertVisitor` | POST | Store visitor record |
+| `/api/notify-signup` | POST | Send email notifications |
+
+### Botpress Integration
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/botpress/kb-create` | POST | Upload content to knowledge base |
+| `/api/botpress/kb-status` | GET | Poll indexing status |
+| `/api/botpress/get-auth-token` | POST | Generate JWT for webchat |
+| `/api/botpress/webhook` | POST | Receive Botpress events |
+
+### Shareable Links
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/share/get-config` | GET | Load chatbot config by slug |
+| `/api/share/trigger-email` | POST | Send shareable link email |
+| `/[slug]` | GET | Dynamic chatbot page (e.g., `/gibbonheating-com`) |
+
+## Database Schema
 
 ```sql
 CREATE TABLE websitevisitors (
@@ -202,218 +173,115 @@ CREATE TABLE websitevisitors (
     email VARCHAR(255),
     website VARCHAR(255),
     companyname VARCHAR(255),
-    mylistingurl TEXT,  -- JSON: Botpress configuration
-    screenshoturl TEXT,
+    mylistingurl TEXT,              -- JSON: Botpress config
+    screenshoturl TEXT,             -- Path: /screenshots/[sessionID].png
+    slug VARCHAR(100) UNIQUE,       -- URL slug for sharing
+    bot_theme JSONB,                -- Chatbot theming config
+    kb_file_id VARCHAR(100),        -- Botpress knowledge base file ID
+    share_email_sent BOOLEAN DEFAULT FALSE,
+    share_link_visits INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
-## 🎨 Branding
-
-The application features Member Solutions branding with the following color scheme:
-
-- **Primary Orange**: `#E76F00`
-- **Dark Blue**: `#00234C`
-- **Gold**: `#F8A433`
-- **Light Orange**: `#FFBB7B`
-
-## 🔧 Development
-
-### Project Structure
+## Project Structure
 
 ```
 magicker-page/
-├── components/           # React components
-│   ├── FormComponent.js       # Initial form
-│   ├── LoadingComponent.js    # Loading animation
-│   ├── ScanningComponent.js   # Scanning progress
-│   ├── Valhallah.js          # Final chatbot screen
-│   └── utils/
-│       └── database.js        # Database connection
 ├── pages/
-│   ├── index.js              # Main application
-│   └── api/                  # API routes
-│       ├── botpress/         # Botpress endpoints
-│       ├── dbCheckDomain.js
+│   ├── index.js              # Main application (form → scan → chat)
+│   ├── [slug].js             # Shareable chatbot pages
+│   └── api/
+│       ├── botpress/         # Botpress Cloud integration
+│       ├── share/            # Shareable link endpoints
+│       ├── dbCheckDomain.js  # Domain deduplication
 │       ├── dbInsertVisitor.js
 │       ├── dbUpdateVisitor.js
 │       ├── get-screenshot.js
-│       └── scrape-website.js
+│       ├── scrape-website.js
+│       ├── notify-signup.js  # Email notifications
+│       └── analyze-thumbnail.js  # AI theme extraction
+├── components/
+│   ├── FormComponent.js      # Email + URL input form
+│   ├── LoadingComponent.js   # AI orb animation
+│   ├── ScanningComponent.js  # Progress + snippets display
+│   └── Valhallah.js          # Final chatbot screen
 ├── lib/
-│   └── scrapers/            # Web scraping modules
-├── scripts/                 # Database and utility scripts
-├── botpress-bot-config/    # Botpress configuration
-├── docker-compose.yml      # Docker services
-└── .env.local             # Environment configuration
+│   └── scrapers/             # Multi-strategy web scraping
+├── configuration/
+│   ├── masterConfig.js       # App-wide settings
+│   └── screenStates.js       # UI state machine
+├── docs/
+│   └── captains_log/         # Development logs
+└── public/
+    └── screenshots/          # Captured website thumbnails
 ```
 
-### Available Scripts
+## Key Decisions
+
+**Why Pages Router over App Router?** — Started before App Router was stable. Works fine. Migration would be effort with no user-facing benefit.
+
+**Why Botpress Cloud over self-hosted?** — Managed infrastructure, built-in NLU, knowledge base indexing. Trade-off: vendor lock-in. Worth it for time savings.
+
+**Why Resend over SendGrid/SES?** — Simple API, easy domain verification, good free tier. 3,000 emails/month free is plenty for this use case.
+
+**Why Screenshot API over Puppeteer screenshots?** — Consistent results, no browser maintenance, handles edge cases. $29/month for 10K screenshots.
+
+**Why store screenshots as files not base64?** — Base64 in database bloated records. Files on disk are simpler, faster, and work with CDNs.
+
+## Troubleshooting
+
+**App hangs at scanning stage**
+- Check PM2 is running production build, not dev mode
+- Run `npm run build` then `pm2 restart magic-page`
+
+**Emails not sending**
+- Verify domain in Resend dashboard
+- Check RESEND_API_KEY and EMAIL_FROM in .env.local
+- View logs: `pm2 logs magic-page | grep EMAIL`
+
+**Chatbot not loading**
+- Check JWT_SECRET matches between server and .env.local
+- Verify BOTPRESS_BOT_ID and BOTPRESS_CLIENT_ID
+- Check browser console for CORS errors
+
+**Database connection refused**
+- Ensure PostgreSQL container is running: `docker ps`
+- Verify DB_PORT matches container mapping (5433, not 5432)
+
+## Monitoring
 
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run lint         # Run ESLint
+# PM2 status
+pm2 status
 
-# PowerShell scripts (Windows)
-.\start-dev.ps1      # Start dev server with logging
-.\kill-dev-servers.ps1  # Stop all dev servers
-.\view-logs.ps1      # View application logs
+# Real-time logs
+pm2 logs magic-page
+
+# Database check
+docker exec -it botpress_postgres psql -U postgres -d mp -c "SELECT COUNT(*) FROM websitevisitors;"
+
+# Recent signups
+docker exec -it botpress_postgres psql -U postgres -d mp -c "SELECT email, website, created_at FROM websitevisitors ORDER BY created_at DESC LIMIT 10;"
 ```
 
-### Database Export
+## Development Notes
 
-Export all database tables to CSV:
+Captain's logs are kept in `docs/captains_log/` for context across sessions. Run `/captainslog list` to see history.
 
-```bash
-node scripts/export-db.js
-```
+The app uses a state machine for UI transitions: `FORM → LOADING → SCANNING → CHAT_TEASE → CHAT`. States defined in `configuration/screenStates.js`.
 
-Files will be saved to `db_dump/` directory.
-
-## 🐳 Docker Services
-
-### PostgreSQL Database
-- **Container**: `botpress_postgres`
-- **Port**: 5433 (mapped from 5432)
-- **Database**: `mp`
-- **User**: `postgres`
-- **Password**: Set in `.env.local`
-
-### Starting Services
-
-```bash
-# Start all services
-docker-compose up -d
-
-# Start only database
-docker-compose up -d postgres
-
-# View logs
-docker-compose logs -f
-
-# Stop all services
-docker-compose down
-```
-
-## 🔐 Security Notes
-
-- Never commit `.env.local` - it contains sensitive credentials
-- Database dumps (`db_dump/`) are excluded from version control
-- Use environment variables for all secrets
-- Personal Access Tokens should have minimal required scopes
-- Rotate API keys regularly
-
-## 🐛 Troubleshooting
-
-### Database Connection Errors
-
-**Error**: `ECONNREFUSED ::1:5433`
-
-**Solution**: Ensure PostgreSQL is running and port is correctly set:
-```bash
-docker-compose up -d postgres
-# Verify port in .env.local is 5433
-```
-
-### Authentication Errors
-
-**Error**: `password authentication failed`
-
-**Solution**: Check password in `.env.local` matches Docker configuration
-```bash
-# Default password is: magicpage_password
-```
-
-### Scraping Failures
-
-**Error**: `Failed to scrape website`
-
-**Solution**:
-1. Check OpenAI API key is valid
-2. Verify website is accessible
-3. Check Playwright installation: `npx playwright install`
-
-## 📊 Database Management
-
-### View Database Tables
-```bash
-docker exec -it botpress_postgres psql -U postgres -d mp -c "\dt"
-```
-
-### View Visitor Records
-```bash
-docker exec -it botpress_postgres psql -U postgres -d mp -c "SELECT * FROM websitevisitors;"
-```
-
-### Backup Database
-```bash
-docker exec botpress_postgres pg_dump -U postgres mp > backup.sql
-```
-
-### Restore Database
-```bash
-docker exec -i botpress_postgres psql -U postgres mp < backup.sql
-```
-
-## 🚀 Deployment
-
-See [IMPLEMENTATION_CHECKLIST.md](./IMPLEMENTATION_CHECKLIST.md) for detailed deployment steps.
-
-### Production Checklist
-
-- [ ] Set production environment variables
-- [ ] Configure SSL certificates
-- [ ] Set up production database
-- [ ] Configure Botpress Cloud production bot
-- [ ] Set up domain and DNS
-- [ ] Configure error monitoring
-- [ ] Set up automated backups
-- [ ] Test lead capture flow end-to-end
-
-## 📝 API Endpoints
-
-### Public Endpoints
-
-- `GET /` - Main application
-- `POST /api/dbCheckDomain` - Check if domain already processed
-- `POST /api/dbInsertVisitor` - Create new visitor record
-- `POST /api/dbUpdateVisitor` - Update visitor with bot config
-- `GET /api/get-screenshot` - Capture website screenshot
-- `POST /api/scrape-website` - Extract website content
-
-### Botpress Endpoints
-
-- `POST /api/botpress/create-session` - Create Botpress session
-- `GET /api/botpress/get-config` - Retrieve bot configuration
-- `POST /api/botpress/webhook` - Botpress webhook handler
-
-## 🤝 Contributing
-
-This is a private project for Member Solutions. For questions or issues, contact the development team.
-
-## 📄 License
-
-Copyright © 2025 Member Solutions. All rights reserved.
-
-## 🙏 Acknowledgments
-
-- **Botpress Cloud** - AI chatbot platform
-- **OpenAI** - GPT-4 for intelligent content extraction
-- **Playwright** - Web scraping and browser automation
-- **PostgreSQL** - Reliable database system
-- **Next.js** - React framework
-
-## 📞 Support
-
-For technical support or questions:
-- Review the documentation in this repository
-- Check the troubleshooting section above
-- Contact the Member Solutions development team
+Botpress webchat theming is dynamic — `analyze-thumbnail.js` uses GPT-4 Vision to extract colors from the website screenshot and generate a matching bot avatar.
 
 ---
 
-**Built with ❤️ by Member Solutions**
+```
+===============================================================================
 
-*Transforming websites into intelligent lead generation machines*
+                    Built by Member Solutions • 2025
+
+          "Because every website deserves an AI that knows its stuff"
+
+===============================================================================
+```

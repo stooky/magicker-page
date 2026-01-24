@@ -47,7 +47,8 @@
       "WebFetch(domain:files.bpcontent.cloud)",
       "WebFetch(domain:www.restack.io)",
       "Bash(ssh:*)",
-      "Bash(scp:*)"
+      "Bash(scp:*)",
+      "Bash(xxd:*)"
     ],
     "deny": [],
     "ask": []

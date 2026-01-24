@@ -1,0 +1,157 @@
+================================================================================
+CAPTAIN'S LOG: email-notifications-v1-working
+Date: 2026-01-23 01:45:00
+Previous Log: caplog-20251129-131041-botpress-theming.txt
+================================================================================
+
+## Summary
+Implemented email notification system using Resend API. After debugging domain
+verification issues, successfully sending admin notifications and user
+confirmation emails. Also fixed shareable chatbot links (dynamic [slug] pages).
+
+## Current State
+The Magic Page application now:
+- Sends admin notification email on every signup (chris+memby@fossenier.com)
+- Sends confirmation email to the user who submitted
+- Uses verified membies.com domain for sending (noreply@membies.com)
+- Has working shareable chatbot links (e.g., mb.membies.com/favorite-com)
+- Stores screenshots to disk for persistence across sessions
+
+## Work Completed
+
+### Email Notification System
+- Created `/pages/api/notify-signup.js` - dedicated endpoint for email notifications
+- Integrated Resend API (https://resend.com) for transactional email
+- Sends two emails per signup:
+  1. Admin notification: "New Magic Page Signup: [website]"
+  2. User confirmation: "Your AI Chatbot for [website] is Being Created!"
+- Fire-and-forget pattern - doesn't block the main flow
+
+### Resend Configuration
+- Added RESEND_API_KEY to .env.local
+- Configured EMAIL_FROM="Magic Page <noreply@membies.com>"
+- Set NOTIFY_EMAIL=chris+memby@fossenier.com
+- Domain membies.com verified in Resend dashboard (DNS records added)
+
+### Screenshot Persistence Fix
+- Modified `/pages/api/get-screenshot.js` to save PNGs to disk
+- Screenshots now saved to `/public/screenshots/[sessionID].png`
+- Database stores file path instead of base64 data URL
+- Fixes missing thumbnails for returning visitors
+
+### Shareable Chatbot Links
+- Created `/pages/[slug].js` - dynamic route for shareable links
+- Loads config from database via `/api/share/get-config`
+- Generates fresh JWT auth token for each visit
+- URL format: mb.membies.com/[domain-slug] (e.g., /favorite-com)
+
+### Production Server Changes
+- Updated .env.local on server with verified domain settings
+- Rebuilt production build with new [slug].js page
+- PM2 restart to pick up env changes
+- Server runs at /root/magicker-page (not /var/www)
+
+## Decisions Made
+
+1. **Dedicated notify-signup endpoint**: Originally tried to add email in
+   dbInsertVisitor.js but that endpoint isn't called for returning domains.
+   Moved to dedicated endpoint called early in handleSubmit flow.
+
+2. **Resend over alternatives**: Resend has simple API, good free tier, and
+   easy domain verification. No need for complex SMTP setup.
+
+3. **Fire-and-forget emails**: Email calls don't await response. Non-blocking
+   so user experience isn't affected if email fails.
+
+4. **Screenshot file storage**: Switched from storing base64 in DB to saving
+   actual PNG files. More reliable for returning visitors.
+
+## Issues Encountered
+
+1. **App hanging at scanner stage**: Root cause was PM2 running `npm run dev`
+   (development mode) instead of production build. Hot-reloading caused
+   instability. Fixed by running `npm run build && npx next start`.
+
+2. **server.js SSL certificate error**: server.js requires SSL_KEY_PATH and
+   SSL_CERT_PATH which weren't set. Nginx handles SSL termination, so we
+   bypassed server.js entirely using `npx next start -p 3000`.
+
+3. **Resend domain not verified**: Initial error "membies.com domain is not
+   verified". Temporarily used `onboarding@resend.dev` as FROM address.
+
+4. **Resend test mode restriction**: Without verified domain, can only send
+   TO the account's registered email. Changed NOTIFY_EMAIL to test address
+   until domain was verified.
+
+5. **[slug].js build error**: ESLint error for using `<a>` instead of
+   `<Link>` from next/link. Fixed by importing and using Link component.
+
+6. **SSH authentication issues**: Had to use `-i ~/.ssh/id_wiki` with
+   `root@mb.membies.com` to access the production server.
+
+## Commits Made
+- f99a5cf: Use Resend test address until membies.com is verified
+- 825528e: Add detailed Resend error logging
+- 38df44d: Fix thumbnail storage and add user confirmation email
+- 1711040: Add dedicated notify-signup endpoint, call early in flow
+- 19c3144: Add verbose email logging and fix: send notification even if DB fails
+- 6a294c3: Move notify email to config (NOTIFY_EMAIL in .env.local)
+- 4bef50d: Remove [slug].js - not using shareable link feature yet
+- 4845d08: Add simple email notification on signup
+- c78b332: Change loading animation back to megaman.gif
+- 2fcbe8f: Add shareable chatbot link feature
+- f765af7: Add deployment scripts and UI component updates
+
+## Mistakes & Lessons
+
+1. **Didn't sync .env.local to server**: Updated local config but forgot
+   server had different values. Always verify production env matches local.
+
+2. **Didn't rebuild after code changes**: Server was running old build. Need
+   to run `npm run build` after any code changes, not just `pm2 restart`.
+
+3. **Assumed chris@ user existed on server**: SSH was failing because the
+   chris user doesn't exist on that server. Users are: root, linuxuser,
+   rooty, ubuntu. Use root with id_wiki key.
+
+4. **Deleted [slug].js prematurely**: Removed it when it had build errors
+   instead of fixing the error. Had to recreate from scratch.
+
+## Server Access Reference
+```bash
+# Connect to server
+ssh -i ~/.ssh/id_wiki root@mb.membies.com
+
+# PM2 commands (need nvm sourced)
+source /root/.nvm/nvm.sh
+pm2 restart magic-page
+pm2 logs magic-page --lines 100 --nostream
+pm2 status
+
+# App location
+/root/magicker-page
+
+# Rebuild production
+cd /root/magicker-page
+npm run build
+pm2 restart magic-page
+```
+
+## Environment Variables (Production)
+```
+RESEND_API_KEY=re_h9sgSzqa_...
+EMAIL_FROM="Magic Page <noreply@membies.com>"
+NOTIFY_EMAIL=chris+memby@fossenier.com
+SHARE_LINK_BASE_URL=https://mb.membies.com
+```
+
+## Next Steps
+- Monitor email delivery rates in Resend dashboard
+- Consider adding email templates for better branding
+- Add unsubscribe link for GDPR compliance
+- Track shareable link click-through rates
+- Consider adding email when chatbot is fully ready (after KB indexed)
+
+================================================================================
+END OF LOG
+================================================================================

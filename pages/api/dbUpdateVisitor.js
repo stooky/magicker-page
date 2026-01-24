@@ -3,7 +3,7 @@ const pool = require('../../components/utils/database');
 
 export default async function handler(req, res) {
     if (req.method === 'POST') {
-        const { sessionID, myListingUrl, slug, botTheme, kbFileId } = req.body;
+        const { sessionID, myListingUrl, slug, botTheme, kbFileId, screenshotUrl } = req.body;
 
         try {
             // Build dynamic update query based on provided fields
@@ -26,6 +26,10 @@ export default async function handler(req, res) {
             if (kbFileId !== undefined) {
                 updates.push(`kb_file_id = $${paramIndex++}`);
                 values.push(kbFileId);
+            }
+            if (screenshotUrl !== undefined) {
+                updates.push(`screenshoturl = $${paramIndex++}`);
+                values.push(screenshotUrl);
             }
 
             if (updates.length === 0) {

@@ -460,13 +460,22 @@ export default function Valhallah({ authToken, domain, isReturning, screenshotUr
                 log('========================================');
             }
 
-            // Step 7: Open webchat
+            // Step 7: Open webchat (with retry for returning visitors)
             log('Step 7: Opening webchat...');
-            try {
-                await bp.open();
-                log('Webchat opened');
-            } catch (e) {
-                log('ERROR: Failed to open webchat:', e);
+            let openAttempts = 0;
+            const maxAttempts = 3;
+            while (openAttempts < maxAttempts) {
+                try {
+                    openAttempts++;
+                    await bp.open();
+                    log('Webchat opened on attempt', openAttempts);
+                    break;
+                } catch (e) {
+                    log('Open attempt', openAttempts, 'failed:', e.message);
+                    if (openAttempts < maxAttempts) {
+                        await new Promise(r => setTimeout(r, 500));
+                    }
+                }
             }
 
             // Step 8: Wait for conversation to start (REQUIRED before sending messages)
