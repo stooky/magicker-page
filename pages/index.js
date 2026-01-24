@@ -624,7 +624,10 @@ useEffect(() => {
             const kbData = await kbResponse.json();
             console.log('Knowledge Base created:', kbData);
 
+            // Store KB file ID for use in database update (React state is async)
+            let currentKbFileId = null;
             if (kbData.success) {
+                currentKbFileId = kbData.fileId;
                 setKbFileId(kbData.fileId);
                 console.log('KB File ID:', kbData.fileId);
                 // kb-create now waits for indexing - no polling needed!
@@ -664,15 +667,16 @@ useEffect(() => {
                 console.log('JWT token generated - waiting for KB ready and snippets to complete');
 
                 // Update database with domain info and shareable config (non-critical)
+                // Use currentKbFileId (local var) instead of kbFileId (React state) due to async state updates
                 try {
                     await axios.post('/api/dbUpdateVisitor', {
                         sessionID: sessionID,
                         myListingUrl: JSON.stringify({ domain: domain, sessionID: sessionID }),
                         slug: domainToSlug(domain),
-                        botTheme: botTheme,
-                        kbFileId: kbFileId
+                        botTheme: window.__BOTPRESS_THEME__ || botTheme,
+                        kbFileId: currentKbFileId
                     });
-                    console.log('Domain info and shareable config saved to database');
+                    console.log('Domain info and shareable config saved to database, kbFileId:', currentKbFileId);
                 } catch (error) {
                     console.log('Could not save to database (non-critical):', error.message);
                     // Continue anyway - database save is not critical for UX

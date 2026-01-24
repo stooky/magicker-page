@@ -58,7 +58,7 @@ export default function ShareableChatbot() {
                 // This mimics the "scanning" phase delay from the main flow
                 setTimeout(() => {
                     setShowChat(true);
-                }, 2500); // 2.5 second delay for initialization
+                }, 5000); // 5 second delay for full initialization
             } catch (err) {
                 console.error('[slug] Error loading config:', err);
                 setError('Failed to load chatbot');
