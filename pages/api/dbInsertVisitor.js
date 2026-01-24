@@ -40,20 +40,20 @@ export default async function handler(req, res) {
     console.log('[dbInsertVisitor] Called with method:', req.method);
 
     if (req.method === 'POST') {
-        const { sessionID, email, website, companyName, myListingUrl, screenshotUrl } = req.body;
-        console.log('[dbInsertVisitor] Inserting visitor:', { sessionID, email, website });
+        const { sessionID, email, website, companyName, myListingUrl, screenshotUrl, slug } = req.body;
+        console.log('[dbInsertVisitor] Inserting visitor:', { sessionID, email, website, slug });
 
         // Always try to send email notification (even if DB fails)
         notifySignup(email, website);
 
         try {
             const query = `
-                INSERT INTO websitevisitors (sessionid, email, website, companyname, mylistingurl, screenshoturl)
-                VALUES ($1, $2, $3, $4, $5, $6) RETURNING *;
+                INSERT INTO websitevisitors (sessionid, email, website, companyname, mylistingurl, screenshoturl, slug)
+                VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
             `;
-            const values = [sessionID, email, website, companyName, myListingUrl, screenshotUrl];
+            const values = [sessionID, email, website, companyName, myListingUrl, screenshotUrl, slug];
             const result = await pool.query(query, values);
-            console.log('[dbInsertVisitor] Insert successful');
+            console.log('[dbInsertVisitor] Insert successful, slug:', slug);
 
             res.status(200).json({ message: 'Data inserted', data: result.rows[0] });
         } catch (err) {

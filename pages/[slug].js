@@ -43,8 +43,8 @@ export default function ShareableChatbot() {
                 });
                 const tokenData = await tokenRes.json();
 
-                if (tokenData.token) {
-                    setAuthToken(tokenData.token);
+                if (tokenData.authToken) {
+                    setAuthToken(tokenData.authToken);
                 } else {
                     setError('Failed to authenticate chatbot');
                     setLoading(false);

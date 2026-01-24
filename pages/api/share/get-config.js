@@ -17,14 +17,17 @@ export default async function handler(req, res) {
     }
 
     try {
-        // Query by slug
+        // Query by slug (convert screenshoturl from bytea to text)
         const query = `
             SELECT
                 sessionid,
                 email,
                 website,
                 companyname,
-                screenshoturl,
+                CASE
+                    WHEN screenshoturl IS NULL THEN NULL
+                    ELSE convert_from(screenshoturl::bytea, 'UTF8')
+                END as screenshoturl,
                 bot_theme,
                 kb_file_id,
                 slug,

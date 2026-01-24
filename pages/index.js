@@ -560,9 +560,13 @@ useEffect(() => {
                 window.__BOTPRESS_THEME__ = DEFAULT_BOT_THEME;
             }
 
+            // Generate slug for shareable URL
+            const slug = domainToSlug(websiteDomain);
+            console.log('Generated slug:', slug, 'for domain:', websiteDomain);
+
             // Insert the visitor data into the database
             try {
-                console.log('Inserting visitor:', sessionID, email, website, companyName);
+                console.log('Inserting visitor:', sessionID, email, website, companyName, 'slug:', slug);
                 await axios.post('/api/dbInsertVisitor', {
                     sessionID: sessionID,
                     email: email,
@@ -570,8 +574,9 @@ useEffect(() => {
                     companyName: companyName,
                     myListingUrl: "EMPTY",
                     screenshotUrl: screenshotData.screenshotPath || `/screenshots/${sessionID}.png`,
+                    slug: slug,
                 });
-                console.log('Visitor inserted successfully:', sessionID);
+                console.log('Visitor inserted successfully:', sessionID, 'with slug:', slug);
             } catch (error) {
                 console.log('Error inserting visitor (non-critical):', error.message);
             }
