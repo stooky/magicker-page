@@ -99,10 +99,8 @@ export default function Valhallah({ authToken, domain, isReturning, isShareableL
         window.__MAGIC_PAGE_WEBSITE__ = website;
         window.__MAGIC_PAGE_SESSION__ = sessionID;
         window.__MAGIC_PAGE_KB_FILE_ID__ = kbFileId;
-        // For shareable links, force full init path (not preloaded)
-        if (isShareableLink) {
-            window.__BOTPRESS_PRELOADED__ = false;
-        }
+        // Note: shareable links now preload botpress during init screen,
+        // so they can use the FAST PATH just like the main flow
     }
 
     // Log on first mount
@@ -145,6 +143,16 @@ export default function Valhallah({ authToken, domain, isReturning, isShareableL
         // Always clear old Botpress localStorage first (fixes stale session issues)
         log('Clearing old Botpress localStorage...');
         clearBotpressStorage();
+
+        // Check if shareable link already did full initialization (including greeting)
+        if (window.__SHARE_CHAT_READY__ && window.__SHARE_GREETING_SENT__ && window.botpress) {
+            log('SKIP PATH: Shareable link already fully initialized!');
+            log('Chat ready:', window.__SHARE_CHAT_READY__);
+            log('Greeting sent:', window.__SHARE_GREETING_SENT__);
+            setChatReady(true);
+            // Nothing to do - everything is already set up
+            return;
+        }
 
         // Check if webchat was preloaded during scanning phase
         if (window.__BOTPRESS_PRELOADED__ && window.botpress) {

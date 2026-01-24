@@ -236,19 +236,24 @@ async function getCompanyName(website) {
         const { name, display_name } = response.data;
 
         // Consolidate the names, preferring 'name' first, and capitalize each word using a regex
-        const companyName = (name || display_name || 'Unknown Company').replace(/\b\w/g, (char) => char.toUpperCase());
-
+        // If neither name is available, return null so caller can use domain fallback
+        const rawName = name || display_name;
+        if (!rawName) {
+            console.log('No company name from PDL, will use domain fallback');
+            return null;
+        }
+        const companyName = rawName.replace(/\b\w/g, (char) => char.toUpperCase());
 
         // Log the names to console for debugging
         console.log('Company Name:', companyName);
 
-        // Return the first valid company name, or a default value
+        // Return the company name
         return companyName;
 
     } catch (error) {
         // Silently fail - PDL API key not configured or invalid
         // console.error('Error fetching company name:', error.message);
-        return 'Unknown Company';
+        return null; // Return null so caller can use domain fallback
     }
 }
 
@@ -519,9 +524,10 @@ useEffect(() => {
         setLoading(true); // Ensure loading is set to true
 
         try {
-            // Skip PDL API call - just use Unknown Company
-            let companyName = 'Unknown Company';
-            console.log('Company Name:', companyName);
+            // Use domain as company name (cleaner than "Unknown Company")
+            // Format: capitalize first letter of each part (e.g., "weezer.com" -> "Weezer.com")
+            let companyName = websiteDomain.charAt(0).toUpperCase() + websiteDomain.slice(1);
+            console.log('Company Name (from domain):', companyName);
             
             console.log('Calling Screenshot');
             const screenshotResponse = await fetch(`/api/get-screenshot?url=${encodeURIComponent(website)}&sessionID=${sessionID}`);

@@ -44,7 +44,7 @@ export default async function handler(req, res) {
             tags: {
                 sessionID: sessionID,
                 website: website,
-                company: company || 'Unknown Company',
+                company: company || website || 'not-provided',
                 email: email || 'not-provided',
                 kbFileId: fileId || 'none'
             }
