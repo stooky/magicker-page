@@ -494,6 +494,23 @@ useEffect(() => {
                     setIsLoading(false);
                     setIsScanning(false);
 
+                    // Subscribe this email to the domain (they'll get the shareable link email)
+                    // Fire-and-forget - don't block the user experience
+                    if (email && existingData.slug) {
+                        console.log('Subscribing returning visitor email to domain...');
+                        fetch('/api/share/subscribe', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: email,
+                                domain: websiteDomain,
+                                slug: existingData.slug
+                            })
+                        }).then(res => res.json())
+                          .then(data => console.log('Subscription result:', data))
+                          .catch(err => console.log('Subscription failed (non-critical):', err.message));
+                    }
+
                     // Generate JWT token for existing domain (websiteDomain already defined above)
                     const tokenResponse = await fetch('/api/botpress/get-auth-token', {
                         method: 'POST',

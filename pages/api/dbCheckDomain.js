@@ -20,7 +20,7 @@ export default async function handler(req, res) {
             // Prefer records with valid bot config (mylistingurl is JSON, not EMPTY)
             // Convert screenshoturl from bytea to text if needed
             const query = `
-                SELECT sessionid, email, website, companyname, mylistingurl,
+                SELECT sessionid, email, website, companyname, mylistingurl, slug,
                     CASE
                         WHEN screenshoturl IS NULL THEN NULL
                         ELSE convert_from(screenshoturl::bytea, 'UTF8')
