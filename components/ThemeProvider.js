@@ -14,12 +14,40 @@ export default function ThemeProvider({ children }) {
         const root = document.documentElement;
         const { theme } = CONFIG;
 
-        // Set CSS variables from config
+        // Primary brand colors
         root.style.setProperty('--theme-primary', theme.primaryColor);
         root.style.setProperty('--theme-secondary', theme.secondaryColor);
         root.style.setProperty('--theme-accent', theme.accentColor);
+
+        // Gradient colors
         root.style.setProperty('--theme-gradient-start', theme.gradientStart);
+        root.style.setProperty('--theme-gradient-mid', theme.gradientMid || theme.primaryColor);
         root.style.setProperty('--theme-gradient-end', theme.gradientEnd);
+
+        // Text colors
+        root.style.setProperty('--theme-text-primary', theme.textPrimary);
+        root.style.setProperty('--theme-text-secondary', theme.textSecondary);
+        root.style.setProperty('--theme-text-light', theme.textLight);
+
+        // Background colors
+        root.style.setProperty('--theme-bg-primary', theme.backgroundPrimary);
+        root.style.setProperty('--theme-bg-secondary', theme.backgroundSecondary);
+        root.style.setProperty('--theme-bg-dark', theme.backgroundDark);
+
+        // Button colors
+        root.style.setProperty('--theme-button-primary', theme.buttonPrimary);
+        root.style.setProperty('--theme-button-primary-hover', theme.buttonPrimaryHover);
+        root.style.setProperty('--theme-button-secondary', theme.buttonSecondary);
+        root.style.setProperty('--theme-button-secondary-hover', theme.buttonSecondaryHover);
+
+        // Border colors
+        root.style.setProperty('--theme-border-light', theme.borderLight);
+        root.style.setProperty('--theme-border-medium', theme.borderMedium);
+
+        // Legacy variables (for backwards compatibility)
+        root.style.setProperty('--button-background', theme.buttonPrimary);
+        root.style.setProperty('--button-hover-background', theme.buttonPrimaryHover);
+        root.style.setProperty('--header-text-color', theme.secondaryColor);
 
         console.log('[ThemeProvider] Applied theme colors from config:', theme);
     }, []);

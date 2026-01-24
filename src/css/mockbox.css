@@ -9,7 +9,7 @@
 -------------------------------------*/
 
 .magic_mock_body {
-    background: linear-gradient(135deg, var(--theme-gradient-start) 0%, #003d7a 35%, var(--theme-gradient-end) 85%, #FFBB7B 100%);
+    background: linear-gradient(135deg, var(--theme-gradient-start) 0%, var(--theme-gradient-mid) 50%, var(--theme-gradient-end) 100%);
     background-repeat: no-repeat;
     background-size: cover;
     width: 100%;
@@ -90,7 +90,7 @@
 
 .magic_mock_body .mock_box form button.submit:hover,
 .agent_overlay_sec button.submit:hover {
-    background: #1976D2;
+    background: var(--theme-button-primary-hover);
 }
 
 .magic_mock_body .mock_box form button.submit img,

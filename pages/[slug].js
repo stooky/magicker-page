@@ -345,7 +345,7 @@ export default function ShareableChatbot() {
                         width: 50px;
                         height: 50px;
                         border: 3px solid rgba(255,255,255,0.2);
-                        border-top-color: #E76F00;
+                        border-top-color: var(--theme-accent, #F48D03);
                         border-radius: 50%;
                         animation: spin 1s linear infinite;
                     }
@@ -398,15 +398,15 @@ export default function ShareableChatbot() {
                         margin-bottom: 30px;
                     }
                     .home-link {
-                        color: #E76F00;
+                        color: var(--theme-accent, #F48D03);
                         text-decoration: none;
                         padding: 12px 24px;
-                        border: 2px solid #E76F00;
+                        border: 2px solid var(--theme-accent, #F48D03);
                         border-radius: 8px;
                         transition: all 0.2s;
                     }
                     .home-link:hover {
-                        background: #E76F00;
+                        background: var(--theme-accent, #F48D03);
                         color: white;
                     }
                 `}</style>
@@ -454,7 +454,7 @@ export default function ShareableChatbot() {
                     .init-title {
                         font-size: 24px;
                         margin-bottom: 10px;
-                        color: #E76F00;
+                        color: var(--theme-accent, #F48D03);
                     }
                     .init-subtitle {
                         font-size: 16px;
@@ -464,9 +464,9 @@ export default function ShareableChatbot() {
                         font-size: 18px;
                         margin-top: 20px;
                         padding: 10px 20px;
-                        background: rgba(231, 111, 0, 0.2);
+                        background: rgba(244, 141, 3, 0.2);
                         border-radius: 8px;
-                        color: #E76F00;
+                        color: var(--theme-accent, #F48D03);
                     }
                 `}</style>
                 <div className="init-icon">🤖</div>

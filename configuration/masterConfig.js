@@ -1,8 +1,10 @@
 // =============================================================================
-// MASTER CONFIGURATION
+// MASTER CONFIGURATION (Client-Side)
 // =============================================================================
-// This file contains all customizable settings for the Magic Page application.
-// Edit values here to change branding, colors, timing, and behavior.
+// This file contains client-side configuration that can be used in React components.
+// For server-side, use lib/configLoader.js which reads from config.yaml
+//
+// IMPORTANT: Keep these values in sync with config.yaml
 // =============================================================================
 
 export const CONFIG = {
@@ -11,23 +13,51 @@ export const CONFIG = {
     // Branding
     // -------------------------------------------------------------------------
     branding: {
-        poweredByText: "Powered by Member Solutions... Boogedy",
-        copyright: "Copyright © 2025",
-        legalLinks: "Privacy Policy  |  Legal beeyatches",
+        companyName: "Member Solutions",
+        poweredByText: "Powered by Member Solutions",
+        copyright: "Copyright © 2025 Member Solutions",
+        legalLinks: "Privacy Policy  |  Terms of Service",
         loadingAnimationPath: "/images/megaman.gif",
+        websiteUrl: "https://membersolutions.com",
     },
 
     // -------------------------------------------------------------------------
     // Theme Colors
     // -------------------------------------------------------------------------
-    // These colors are used throughout the application for consistent branding.
-    // Format: hex color codes (e.g., "#E76F00")
+    // Based on Member Solutions brand (https://membersolutions.com)
+    // Primary Blue: #1863DC - Main interactive elements
+    // Orange Accent: #F48D03 - CTAs and highlights
+    // Dark Navy: #00234C - Text and headings
     theme: {
-        primaryColor: "#00e70cff",      // Member Solutions orange
-        secondaryColor: "#f759d4ff",    // Dark blue
-        accentColor: "#440ddbff",       // Gold
-        gradientStart: "#f0ec08ff",     // Gradient background start (dark blue)
-        gradientEnd: "#e70000ff",       // Gradient background end (orange)
+        // Primary brand colors
+        primaryColor: "#1863DC",       // Member Solutions blue
+        secondaryColor: "#00234C",     // Dark navy
+        accentColor: "#F48D03",        // Orange accent
+
+        // Gradient backgrounds
+        gradientStart: "#00234C",      // Dark navy
+        gradientMid: "#1863DC",        // Blue
+        gradientEnd: "#F48D03",        // Orange
+
+        // Text colors
+        textPrimary: "#212121",
+        textSecondary: "#858585",
+        textLight: "#FFFFFF",
+
+        // Background colors
+        backgroundPrimary: "#FFFFFF",
+        backgroundSecondary: "#F4F4F4",
+        backgroundDark: "#00234C",
+
+        // Button colors
+        buttonPrimary: "#1863DC",
+        buttonPrimaryHover: "#1454B8",
+        buttonSecondary: "#F48D03",
+        buttonSecondaryHover: "#D97A03",
+
+        // Border colors
+        borderLight: "#EBEBEB",
+        borderMedium: "#CCCCCC",
     },
 
     // -------------------------------------------------------------------------
@@ -73,19 +103,4 @@ export const CONFIG = {
         // How long to wait for a scrape before considering it stale (ms)
         scrapeStaleMs: 10 * 60 * 1000,  // 10 minutes
     },
-
-    // -------------------------------------------------------------------------
-    // Future Configuration Sections
-    // -------------------------------------------------------------------------
-    // Uncomment and configure as needed:
-    //
-    // database: {
-    //     host: "localhost",
-    //     port: 5433,
-    //     name: "mp",
-    // },
-    //
-    // botpress: {
-    //     webhookSecret: "...",
-    // },
 };

@@ -639,7 +639,7 @@ export default function Valhallah({ authToken, domain, isReturning, isShareableL
                                 Your AI Agent is Ready!
                             </h1>
                             <p style={{ fontSize: '1.5rem', margin: '0' }}>
-                                Chat with it using the widget in the <span style={{ color: '#F8A433', fontWeight: 'bold' }}>bottom right corner</span>
+                                Chat with it using the widget in the <span style={{ color: 'var(--theme-accent, #F48D03)', fontWeight: 'bold' }}>bottom right corner</span>
                             </p>
                         </>
                     )}

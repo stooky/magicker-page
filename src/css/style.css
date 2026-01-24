@@ -1,19 +1,35 @@
 :root {
-  /* color variables */
-  --page-background: #eeeeee;
+  /* Legacy color variables (for backwards compatibility) */
+  --page-background: #F4F4F4;
   --text-background: #ffffff;
-  --button-background: #43a047;
-  --button-hover-background: #2e7d32;
-  --header-text-color: #22292f;
-  --subheading-text-color: #999999;
-  --text-color: #5f6368;
+  --button-background: #1863DC;
+  --button-hover-background: #1454B8;
+  --header-text-color: #00234C;
+  --subheading-text-color: #858585;
+  --text-color: #212121;
 
-  /* Theme colors (overridden by masterConfig.js via ThemeProvider) */
-  --theme-primary: #E76F00;
-  --theme-secondary: #00234C;
-  --theme-accent: #F8A433;
-  --theme-gradient-start: #00234C;
-  --theme-gradient-end: #E76F00;
+  /* Theme colors - Member Solutions branding */
+  /* These are overridden by masterConfig.js via ThemeProvider */
+  --theme-primary: #1863DC;        /* Blue - buttons, links */
+  --theme-secondary: #00234C;      /* Dark navy - headings */
+  --theme-accent: #F48D03;         /* Orange - CTAs, highlights */
+  --theme-gradient-start: #00234C; /* Gradient start (dark) */
+  --theme-gradient-mid: #1863DC;   /* Gradient middle (blue) */
+  --theme-gradient-end: #F48D03;   /* Gradient end (orange) */
+
+  /* Extended theme colors */
+  --theme-text-primary: #212121;
+  --theme-text-secondary: #858585;
+  --theme-text-light: #FFFFFF;
+  --theme-bg-primary: #FFFFFF;
+  --theme-bg-secondary: #F4F4F4;
+  --theme-bg-dark: #00234C;
+  --theme-button-primary: #1863DC;
+  --theme-button-primary-hover: #1454B8;
+  --theme-button-secondary: #F48D03;
+  --theme-button-secondary-hover: #D97A03;
+  --theme-border-light: #EBEBEB;
+  --theme-border-medium: #CCCCCC;
 }
 
 * {
@@ -166,7 +182,7 @@ body {
 }
 .set2 .particle1 {
   animation-delay: 1.6s;
-  background: #F28F1D;
+  background: var(--theme-accent);
   bottom: 2em;
   right: 2em;
 }
@@ -192,7 +208,7 @@ body {
 }
 .set3 .particle2 {
   animation-delay: 1s;
-  background: #FFBB7B;
+  background: var(--theme-primary);
 }
 .set3 .particle3 {
   animation-delay: 1s;
@@ -253,7 +269,3 @@ body {
     offset-distance: 100%;
   }
 }
-
-
-
-

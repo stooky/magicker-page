@@ -1,0 +1,124 @@
+# =============================================================================
+# MAGIC PAGE CONFIGURATION
+# =============================================================================
+# This file contains all customizable settings for the Magic Page application.
+# Edit values here to change branding, colors, timing, and behavior.
+#
+# After editing, restart the application to apply changes.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Branding
+# -----------------------------------------------------------------------------
+branding:
+  companyName: "Member Solutions"
+  poweredByText: "Powered by Member Solutions"
+  copyright: "Copyright © 2025 Member Solutions"
+  legalLinks: "Privacy Policy  |  Terms of Service"
+  loadingAnimationPath: "/images/megaman.gif"
+  websiteUrl: "https://membersolutions.com"
+  emailFrom: "Magic Page <noreply@membies.com>"
+
+# -----------------------------------------------------------------------------
+# Theme Colors
+# -----------------------------------------------------------------------------
+# These colors are used throughout the application for consistent branding.
+# Based on Member Solutions brand guidelines (https://membersolutions.com)
+#
+# Color Palette:
+#   Primary Blue: #1863DC - Main interactive elements (buttons, links)
+#   Orange Accent: #F48D03 - CTAs and highlights
+#   Dark Navy: #00234C - Text and headings
+#   Light variants for gradients and hover states
+#
+theme:
+  # Primary brand colors
+  primaryColor: "#1863DC"       # Member Solutions blue - buttons, links
+  secondaryColor: "#00234C"     # Dark navy - headings, text
+  accentColor: "#F48D03"        # Orange - CTAs, highlights
+
+  # Gradient backgrounds
+  gradientStart: "#00234C"      # Dark navy (start)
+  gradientMid: "#1863DC"        # Blue (middle)
+  gradientEnd: "#F48D03"        # Orange (end)
+
+  # Text colors
+  textPrimary: "#212121"        # Dark charcoal - main text
+  textSecondary: "#858585"      # Medium gray - secondary text
+  textLight: "#FFFFFF"          # White - text on dark backgrounds
+
+  # Background colors
+  backgroundPrimary: "#FFFFFF"  # White
+  backgroundSecondary: "#F4F4F4" # Light gray
+  backgroundDark: "#00234C"     # Dark navy
+
+  # Button colors
+  buttonPrimary: "#1863DC"      # Blue button
+  buttonPrimaryHover: "#1454B8" # Darker blue on hover
+  buttonSecondary: "#F48D03"    # Orange button (CTA)
+  buttonSecondaryHover: "#D97A03" # Darker orange on hover
+
+  # Border colors
+  borderLight: "#EBEBEB"
+  borderMedium: "#CCCCCC"
+
+# -----------------------------------------------------------------------------
+# Scanning Stage
+# -----------------------------------------------------------------------------
+# Configuration for the "Building Your AI" screen shown while scraping.
+#
+scanningStage:
+  # Delay between header quotes in milliseconds
+  quoteDelayMs: 5000
+
+  # Quotes that cycle in the main header (h2) during scanning
+  quotes:
+    - "Building Your AI"
+    - "Skimming Your Website"
+    - "Loading All The Goodies!"
+    - "Very Interesting!"
+    - "Almost There..."
+    - "Crunching The Data"
+
+  # Status steps shown in the progress list
+  steps:
+    - name: "Loading website"
+      duration: 2000
+    - name: "Scanning website"
+      duration: 3000
+    - name: "Generating AI Agent"
+      duration: 4000
+    - name: "Build preview"
+      duration: 5000
+
+# -----------------------------------------------------------------------------
+# Snippets
+# -----------------------------------------------------------------------------
+# Configuration for displaying scraped content snippets.
+#
+snippets:
+  # How long each snippet is displayed in milliseconds
+  displayTimeMs: 3000
+
+# -----------------------------------------------------------------------------
+# Timeouts & Limits
+# -----------------------------------------------------------------------------
+timeouts:
+  # How long to wait for a scrape before considering it stale (ms)
+  scrapeStaleMs: 600000  # 10 minutes
+
+# -----------------------------------------------------------------------------
+# Email Templates
+# -----------------------------------------------------------------------------
+# Colors and text used in transactional emails
+#
+email:
+  # Header color for email titles
+  headerColor: "#1863DC"
+  # Button background color
+  buttonColor: "#F48D03"
+  # Background gradient for email sections
+  sectionGradientStart: "#00234C"
+  sectionGradientEnd: "#1863DC"
+  # Footer link color
+  footerLinkColor: "#1863DC"
