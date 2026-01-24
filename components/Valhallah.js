@@ -150,6 +150,7 @@ export default function Valhallah({ authToken, domain, isReturning, isShareableL
             log('Chat ready:', window.__SHARE_CHAT_READY__);
             log('Greeting sent:', window.__SHARE_GREETING_SENT__);
             setChatReady(true);
+            setUserDataConfirmed(true); // User data was already set by [slug].js
             // Nothing to do - everything is already set up
             return;
         }
