@@ -48,7 +48,9 @@
       "WebFetch(domain:www.restack.io)",
       "Bash(ssh:*)",
       "Bash(scp:*)",
-      "Bash(xxd:*)"
+      "Bash(xxd:*)",
+      "Bash(timeout 30 ssh:*)",
+      "Bash(ssh-keygen:*)"
     ],
     "deny": [],
     "ask": []
