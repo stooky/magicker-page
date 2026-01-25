@@ -39,19 +39,8 @@ const MainContainer = () => {
     const [snippetsShownCount, setSnippetsShownCount] = useState(0);
     const [webchatPreloaded, setWebchatPreloaded] = useState(false);
 
-    // Bot theme state (AI-generated from thumbnail, or Marv fallback)
-    const DEFAULT_BOT_THEME = {
-        name: 'Marv',
-        avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=marv&backgroundColor=b6e3f4&eyes=happy&mouth=smile01',
-        primaryColor: '#2563eb',
-        secondaryColor: '#1e40af',
-        description: 'Your friendly assistant'
-    };
-    const [botTheme, setBotTheme] = useState(DEFAULT_BOT_THEME);
-
-    const apiKey = process.env.NEXT_PUBLIC_PDL_API_KEY;
-    const apiUrl = process.env.NEXT_PUBLIC_PDL_API_URL;
-    const DOMAIN = process.env.NEXT_PUBLIC_DOMAIN;
+    // Bot theme state (AI-generated from thumbnail, or default from config)
+    const [botTheme, setBotTheme] = useState(CONFIG.defaultBotTheme);
 
     // Preload webchat during scanning phase
     useEffect(() => {
@@ -175,8 +164,8 @@ const MainContainer = () => {
                 // Initialize webchat but DON'T open yet
                 // Opening during preload starts conversation & bot greeting before we can send context
                 bp.init({
-                    botId: '3809961f-f802-40a3-aa5a-9eb91c0dedbb',
-                    clientId: 'f4011114-6902-416b-b164-12a8df8d0f3d',
+                    botId: CONFIG.botpress.botId,
+                    clientId: CONFIG.botpress.clientId,
                     configuration: {
                         botName: theme.name,
                         botDescription: theme.description,
@@ -204,76 +193,15 @@ const MainContainer = () => {
         }
     }, [isScanning, webchatPreloaded]);
 
-
-
-    // Function to call People Data Labs API and get the company name
-async function getCompanyName(website) {
-    
-
-    console.log('apiUrl: ', apiUrl);
-    console.log('website: ', website);
-    try {
-
-        // Log the API URL, Website, and API Key (for debugging)
-        console.log('API Request Details:');
-        console.log('API URL: ', apiUrl);
-        console.log('Website: ', website);
-        console.log('API Key: ', apiKey); // Be cautious about printing sensitive information like API keys.
-
-
-        // Make the API request
-        const response = await axios.get(apiUrl, {
-            params: {
-                website: website,
-                min_likelihood: 5
-            },
-            headers: {
-                'X-Api-Key': apiKey
-            }
-        });
-
-        // Extract company name and display name from the response
-        const { name, display_name } = response.data;
-
-        // Consolidate the names, preferring 'name' first, and capitalize each word using a regex
-        // If neither name is available, return null so caller can use domain fallback
-        const rawName = name || display_name;
-        if (!rawName) {
-            console.log('No company name from PDL, will use domain fallback');
-            return null;
-        }
-        const companyName = rawName.replace(/\b\w/g, (char) => char.toUpperCase());
-
-        // Log the names to console for debugging
-        console.log('Company Name:', companyName);
-
-        // Return the company name
-        return companyName;
-
-    } catch (error) {
-        // Silently fail - PDL API key not configured or invalid
-        // console.error('Error fetching company name:', error.message);
-        return null; // Return null so caller can use domain fallback
-    }
-}
-
     // Define the delay function
-    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));    
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-
-
-// On component mount, check if sessionID exists in localStorage
+// On component mount, generate a new sessionID
 useEffect(() => {
-    /*let existingSessionID = localStorage.getItem('sessionID');
-    if (existingSessionID) {
-        setSessionID(existingSessionID);
-        console.log('Existing sessionID:', existingSessionID);
-    } else {*/
-        const newSessionID = Math.random().toString(36).substring(2, 8);
-        localStorage.setItem('sessionID', newSessionID);
-        setSessionID(newSessionID);
-        console.log('New sessionID:', newSessionID);
-    //}
+    const newSessionID = Math.random().toString(36).substring(2, 8);
+    localStorage.setItem('sessionID', newSessionID);
+    setSessionID(newSessionID);
+    console.log('New sessionID:', newSessionID);
 }, []);
 
 
@@ -569,11 +497,11 @@ useEffect(() => {
                         window.__BOTPRESS_THEME__ = themeData.theme;
                     } else {
                         console.log('Using default Marv theme');
-                        window.__BOTPRESS_THEME__ = DEFAULT_BOT_THEME;
+                        window.__BOTPRESS_THEME__ = CONFIG.defaultBotTheme;
                     }
                 } catch (themeError) {
                     console.error('Theme analysis failed, using Marv fallback:', themeError.message);
-                    window.__BOTPRESS_THEME__ = DEFAULT_BOT_THEME;
+                    window.__BOTPRESS_THEME__ = CONFIG.defaultBotTheme;
                 }
 
                 // Now set screenshot URL (triggers scanning phase)
@@ -581,7 +509,7 @@ useEffect(() => {
             } else {
                 console.error('Error fetching screenshot:', screenshotData.error);
                 // Even if screenshot fails, set default theme
-                window.__BOTPRESS_THEME__ = DEFAULT_BOT_THEME;
+                window.__BOTPRESS_THEME__ = CONFIG.defaultBotTheme;
             }
 
             // Generate slug for shareable URL

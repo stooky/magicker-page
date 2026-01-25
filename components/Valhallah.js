@@ -78,16 +78,7 @@ const waitFor = (checkFn, maxWaitMs = 5000, intervalMs = 200) => {
     });
 };
 
-// Default Marv theme (fallback)
-const DEFAULT_BOT_THEME = {
-    name: 'Marv',
-    avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=marv&backgroundColor=b6e3f4&eyes=happy&mouth=smile01',
-    primaryColor: '#2563eb',
-    secondaryColor: '#1e40af',
-    description: 'Your friendly assistant'
-};
-
-export default function Valhallah({ authToken, domain, isReturning, isShareableLink = false, screenshotUrl, sessionID, website, kbFileId, botTheme = DEFAULT_BOT_THEME }) {
+export default function Valhallah({ authToken, domain, isReturning, isShareableLink = false, screenshotUrl, sessionID, website, kbFileId, botTheme = CONFIG.defaultBotTheme }) {
     const hasInitialized = useRef(false);
     const [chatReady, setChatReady] = useState(false);
     const [fadeIn, setFadeIn] = useState(false);
@@ -391,12 +382,12 @@ export default function Valhallah({ authToken, domain, isReturning, isShareableL
 
             // Step 4: Initialize webchat (listeners already set up)
             log('Step 4: Initializing webchat...');
-            // Use theme from props (AI-generated or default Marv)
-            const theme = botTheme || DEFAULT_BOT_THEME;
+            // Use theme from props (AI-generated or default from config)
+            const theme = botTheme || CONFIG.defaultBotTheme;
             log('Using theme:', theme.name, theme.primaryColor);
             const initConfig = {
-                botId: '3809961f-f802-40a3-aa5a-9eb91c0dedbb',
-                clientId: 'f4011114-6902-416b-b164-12a8df8d0f3d',
+                botId: CONFIG.botpress.botId,
+                clientId: CONFIG.botpress.clientId,
                 configuration: {
                     botName: theme.name,
                     botDescription: theme.description || ('Your friendly AI assistant for ' + domain),

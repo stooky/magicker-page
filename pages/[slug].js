@@ -7,15 +7,6 @@ import Link from 'next/link';
 import Valhallah from '../components/Valhallah';
 import { CONFIG } from '../configuration/masterConfig';
 
-// Default bot theme (fallback)
-const DEFAULT_BOT_THEME = {
-    name: 'Marv',
-    avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=marv&backgroundColor=b6e3f4&eyes=happy&mouth=smile01',
-    primaryColor: '#2563eb',
-    secondaryColor: '#1e40af',
-    description: 'Your friendly assistant'
-};
-
 export default function ShareableChatbot() {
     const router = useRouter();
     const { slug } = router.query;
@@ -138,8 +129,8 @@ export default function ShareableChatbot() {
                 console.log('[SHARE INIT] Webchat ready event');
             });
 
-            // Use provided theme or default
-            const theme = botTheme || DEFAULT_BOT_THEME;
+            // Use provided theme or default from config
+            const theme = botTheme || CONFIG.defaultBotTheme;
             console.log('[SHARE INIT] Using theme:', theme.name, theme.primaryColor);
 
             // Store theme in window
@@ -148,8 +139,8 @@ export default function ShareableChatbot() {
             // STEP 1: Initialize webchat
             console.log('[SHARE INIT] Step 1: Initializing webchat...');
             bp.init({
-                botId: '3809961f-f802-40a3-aa5a-9eb91c0dedbb',
-                clientId: 'f4011114-6902-416b-b164-12a8df8d0f3d',
+                botId: CONFIG.botpress.botId,
+                clientId: CONFIG.botpress.clientId,
                 configuration: {
                     botName: theme.name,
                     botDescription: theme.description,

@@ -103,4 +103,23 @@ export const CONFIG = {
         // How long to wait for a scrape before considering it stale (ms)
         scrapeStaleMs: 10 * 60 * 1000,  // 10 minutes
     },
+
+    // -------------------------------------------------------------------------
+    // Botpress Configuration
+    // -------------------------------------------------------------------------
+    botpress: {
+        botId: '3809961f-f802-40a3-aa5a-9eb91c0dedbb',
+        clientId: 'f4011114-6902-416b-b164-12a8df8d0f3d',
+    },
+
+    // -------------------------------------------------------------------------
+    // Default Bot Theme (Marv fallback)
+    // -------------------------------------------------------------------------
+    defaultBotTheme: {
+        name: 'Marv',
+        avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=marv&backgroundColor=b6e3f4&eyes=happy&mouth=smile01',
+        primaryColor: '#2563eb',
+        secondaryColor: '#1e40af',
+        description: 'Your friendly assistant'
+    },
 };
