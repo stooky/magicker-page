@@ -34,12 +34,13 @@ const FormComponent = ({ onSubmit }) => {
                 <p> No coding needed. Just enter your website and watch the magic happen.</p> <br/><br/>
 
                 <form onSubmit={handleSubmit}>
-                    <input 
-                        type="email" 
-                        placeholder="Email" 
+                    <input
+                        type="email"
+                        placeholder="Email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}  // Bind input to state
-                        required 
+                        onChange={(e) => setEmail(e.target.value)}
+                        autoFocus
+                        required
                     /> 
                     <br/>
                     <input 
