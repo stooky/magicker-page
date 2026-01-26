@@ -158,7 +158,14 @@ export default async function handler(req, res) {
 
 // Build detailed HTML email for admin
 function buildAdminEmail({ email, website, domain, currentVisitor, allVisitors, shareUrl, baseUrl }) {
-    const otherVisitors = allVisitors.filter(v => v.email !== email || extractDomain(v.website) !== domain);
+    // Filter to only show previous entries that match either the same email OR same domain
+    // (excluding the current visitor)
+    const relatedVisitors = allVisitors.filter(v => {
+        // Skip current visitor
+        if (v.email === email && extractDomain(v.website) === domain) return false;
+        // Include if email matches OR domain matches
+        return v.email === email || extractDomain(v.website) === domain;
+    });
     const totalCount = allVisitors.length;
 
     return `
@@ -278,10 +285,11 @@ function buildAdminEmail({ email, website, domain, currentVisitor, allVisitors, 
                 ` : ''}
             </div>
 
-            ${otherVisitors.length > 0 ? `
+            ${relatedVisitors.length > 0 ? `
             <div class="divider"></div>
 
-            <div class="history-title">📊 Previous Signups (${otherVisitors.length})</div>
+            <div class="history-title">📊 Related Previous Signups (${relatedVisitors.length})</div>
+            <p style="font-size: 12px; color: #888; margin: 0 0 15px 0;">Showing entries with matching email or domain</p>
 
             <table class="history-table">
                 <thead>
@@ -294,7 +302,7 @@ function buildAdminEmail({ email, website, domain, currentVisitor, allVisitors, 
                     </tr>
                 </thead>
                 <tbody>
-                    ${otherVisitors.slice(0, 20).map(v => `
+                    ${relatedVisitors.slice(0, 20).map(v => `
                     <tr>
                         <td style="white-space: nowrap;">${formatDate(v.created_at)}</td>
                         <td><a href="mailto:${v.email}" style="color: #1863DC; text-decoration: none;">${v.email || 'N/A'}</a></td>
@@ -305,7 +313,7 @@ function buildAdminEmail({ email, website, domain, currentVisitor, allVisitors, 
                     `).join('')}
                 </tbody>
             </table>
-            ${otherVisitors.length > 20 ? `<p style="font-size: 12px; color: #888; margin-top: 10px;">+ ${otherVisitors.length - 20} more...</p>` : ''}
+            ${relatedVisitors.length > 20 ? `<p style="font-size: 12px; color: #888; margin-top: 10px;">+ ${relatedVisitors.length - 20} more...</p>` : ''}
             ` : ''}
         </div>
 
@@ -320,7 +328,11 @@ function buildAdminEmail({ email, website, domain, currentVisitor, allVisitors, 
 
 // Build plain text version for admin
 function buildAdminText({ email, website, domain, currentVisitor, allVisitors, shareUrl }) {
-    const otherVisitors = allVisitors.filter(v => v.email !== email || extractDomain(v.website) !== domain);
+    // Filter to only show previous entries that match either the same email OR same domain
+    const relatedVisitors = allVisitors.filter(v => {
+        if (v.email === email && extractDomain(v.website) === domain) return false;
+        return v.email === email || extractDomain(v.website) === domain;
+    });
 
     let text = `
 🤖 NEW CHATBOT SIGNUP
@@ -347,18 +359,19 @@ Created: ${formatDate(currentVisitor.created_at)}
         text += `\nShareable Link: ${shareUrl}\n`;
     }
 
-    if (otherVisitors.length > 0) {
+    if (relatedVisitors.length > 0) {
         text += `
 ---------------------
-PREVIOUS SIGNUPS (${otherVisitors.length})
+RELATED PREVIOUS SIGNUPS (${relatedVisitors.length})
+(matching email or domain)
 ---------------------
 `;
-        otherVisitors.slice(0, 10).forEach(v => {
+        relatedVisitors.slice(0, 10).forEach(v => {
             text += `\n• ${v.email || 'N/A'} - ${extractDomain(v.website)} (${formatDate(v.created_at)})`;
         });
 
-        if (otherVisitors.length > 10) {
-            text += `\n\n+ ${otherVisitors.length - 10} more...`;
+        if (relatedVisitors.length > 10) {
+            text += `\n\n+ ${relatedVisitors.length - 10} more...`;
         }
     }
 

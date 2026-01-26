@@ -454,13 +454,7 @@ useEffect(() => {
             }
 
             console.log('Domain is new, proceeding with full flow...');
-
-            // SEND SIGNUP NOTIFICATION (only for NEW domains - returning visitors get shareable link email via /api/share/subscribe)
-            fetch('/api/notify-signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, website })
-            }).catch(err => console.log('Notification failed (non-critical):', err.message));
+            // Admin notification will be sent AFTER processing is complete (see below)
         } catch (error) {
             console.error('Error checking domain:', error);
             // Continue with normal flow if check fails
@@ -628,9 +622,23 @@ useEffect(() => {
                         kbFileId: currentKbFileId
                     });
                     console.log('Domain info and shareable config saved to database, kbFileId:', currentKbFileId);
+
+                    // SEND ADMIN NOTIFICATION (after all processing is complete)
+                    // Now we have: screenshot, theme, KB file, slug, etc.
+                    fetch('/api/notify-signup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, website })
+                    }).catch(err => console.log('Admin notification failed (non-critical):', err.message));
                 } catch (error) {
                     console.log('Could not save to database (non-critical):', error.message);
                     // Continue anyway - database save is not critical for UX
+                    // Still send admin notification even if DB save failed
+                    fetch('/api/notify-signup', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, website })
+                    }).catch(err => console.log('Admin notification failed (non-critical):', err.message));
                 }
             } else {
                 console.error('Failed to generate JWT token:', tokenData.error);
