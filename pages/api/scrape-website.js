@@ -4,6 +4,7 @@
  * Replaces the Zapier webhook functionality
  */
 import { scrapeWebsite } from '../../lib/scrapers/scraper-orchestrator.js';
+const { isValidUrl } = require('../../lib/validation');
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -17,6 +18,13 @@ export default async function handler(req, res) {
         return res.status(400).json({
             status: 'error',
             message: '1. Website URL is required'
+        });
+    }
+
+    if (!isValidUrl(url)) {
+        return res.status(400).json({
+            status: 'error',
+            message: '1. Invalid website URL format'
         });
     }
 

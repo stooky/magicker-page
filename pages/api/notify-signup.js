@@ -48,37 +48,41 @@ export default async function handler(req, res) {
     const notifyTo = process.env.NOTIFY_EMAIL;
     const results = { admin: null, user: null };
 
-    // Fetch all visitors from database for admin email
-    let allVisitors = [];
+    // Fetch visitor data from database for admin email
     let currentVisitor = null;
+    let relatedVisitors = [];
+    let totalCount = 0;
     const domain = extractDomain(website);
 
     try {
-        const query = `
-            SELECT
-                sessionid,
-                email,
-                website,
-                companyname,
-                slug,
-                kb_file_id,
-                share_email_sent,
-                first_message_at,
-                created_at,
-                updated_at
+        // 1. Find current visitor by email + domain
+        const currentResult = await pool.query(`
+            SELECT sessionid, email, website, companyname, slug, kb_file_id,
+                   share_email_sent, first_message_at, created_at, updated_at
             FROM websitevisitors
+            WHERE email = $1 AND website ILIKE $2
             ORDER BY created_at DESC
-            LIMIT 100;
-        `;
-        const result = await pool.query(query);
-        allVisitors = result.rows;
+            LIMIT 1;
+        `, [email, `%${domain}%`]);
+        currentVisitor = currentResult.rows[0] || null;
 
-        // Find current visitor (match by email + domain)
-        currentVisitor = allVisitors.find(v =>
-            v.email === email && extractDomain(v.website) === domain
-        );
+        // 2. Find related visitors (same email OR same domain, excluding current)
+        const relatedResult = await pool.query(`
+            SELECT sessionid, email, website, companyname, slug, kb_file_id,
+                   share_email_sent, first_message_at, created_at, updated_at
+            FROM websitevisitors
+            WHERE (email = $1 OR website ILIKE $2)
+              AND NOT (email = $1 AND website ILIKE $2)
+            ORDER BY created_at DESC
+            LIMIT 20;
+        `, [email, `%${domain}%`]);
+        relatedVisitors = relatedResult.rows;
 
-        console.log(`[notify-signup] Found ${allVisitors.length} total visitors in database`);
+        // 3. Get total signup count
+        const countResult = await pool.query(`SELECT COUNT(*) FROM websitevisitors;`);
+        totalCount = parseInt(countResult.rows[0].count, 10);
+
+        console.log(`[notify-signup] Found current: ${!!currentVisitor}, related: ${relatedVisitors.length}, total: ${totalCount}`);
     } catch (err) {
         console.log('[notify-signup] Database query failed:', err.message);
         // Continue without database data - still send basic notification
@@ -98,7 +102,8 @@ export default async function handler(req, res) {
                 website,
                 domain,
                 currentVisitor,
-                allVisitors,
+                relatedVisitors,
+                totalCount,
                 shareUrl,
                 baseUrl
             });
@@ -109,7 +114,8 @@ export default async function handler(req, res) {
                 website,
                 domain,
                 currentVisitor,
-                allVisitors,
+                relatedVisitors,
+                totalCount,
                 shareUrl
             });
 
@@ -157,16 +163,7 @@ export default async function handler(req, res) {
 }
 
 // Build detailed HTML email for admin
-function buildAdminEmail({ email, website, domain, currentVisitor, allVisitors, shareUrl, baseUrl }) {
-    // Filter to only show previous entries that match either the same email OR same domain
-    // (excluding the current visitor)
-    const relatedVisitors = allVisitors.filter(v => {
-        // Skip current visitor
-        if (v.email === email && extractDomain(v.website) === domain) return false;
-        // Include if email matches OR domain matches
-        return v.email === email || extractDomain(v.website) === domain;
-    });
-    const totalCount = allVisitors.length;
+function buildAdminEmail({ email, website, domain, currentVisitor, relatedVisitors, totalCount, shareUrl, baseUrl }) {
 
     return `
 <!DOCTYPE html>
@@ -327,12 +324,7 @@ function buildAdminEmail({ email, website, domain, currentVisitor, allVisitors, 
 }
 
 // Build plain text version for admin
-function buildAdminText({ email, website, domain, currentVisitor, allVisitors, shareUrl }) {
-    // Filter to only show previous entries that match either the same email OR same domain
-    const relatedVisitors = allVisitors.filter(v => {
-        if (v.email === email && extractDomain(v.website) === domain) return false;
-        return v.email === email || extractDomain(v.website) === domain;
-    });
+function buildAdminText({ email, website, domain, currentVisitor, relatedVisitors, totalCount, shareUrl }) {
 
     let text = `
 🤖 NEW CHATBOT SIGNUP
@@ -375,7 +367,7 @@ RELATED PREVIOUS SIGNUPS (${relatedVisitors.length})
         }
     }
 
-    text += `\n\n---\nTotal Signups: ${allVisitors.length}`;
+    text += `\n\n---\nTotal Signups: ${totalCount}`;
 
     return text.trim();
 }

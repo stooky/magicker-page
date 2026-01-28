@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { SNIPPET_DISPLAY_TIME, SCANNING_STAGE_CONFIG } from '../configuration/screenStates';
 import { CONFIG } from '../configuration/masterConfig';
-import '../src/css/main.css';
-import '../src/css/mockbox.css';
-import '../src/css/thumbnail.css';
-import '../src/css/ai_agent.css';
-import '../src/css/weird_stuff.css';
-import '../src/css/style.css';
 
 export default function ScanningComponent({ screenshotUrl, messageItems }) {
     const [activeStep, setActiveStep] = useState(0);

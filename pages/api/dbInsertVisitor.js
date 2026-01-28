@@ -2,12 +2,21 @@
 // Note: Signup notifications are handled by /api/notify-signup (called from frontend)
 // This file only handles database insertion
 const pool = require('../../components/utils/database');
+const { isValidEmail, isValidUrl } = require('../../lib/validation');
 
 export default async function handler(req, res) {
     console.log('[dbInsertVisitor] Called with method:', req.method);
 
     if (req.method === 'POST') {
         const { sessionID, email, website, companyName, myListingUrl, screenshotUrl, slug } = req.body;
+
+        if (email && !isValidEmail(email)) {
+            return res.status(400).json({ success: false, error: 'Invalid email format' });
+        }
+        if (website && !isValidUrl(website)) {
+            return res.status(400).json({ success: false, error: 'Invalid website URL' });
+        }
+
         console.log('[dbInsertVisitor] Inserting visitor:', { sessionID, email, website, slug });
 
         try {

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "dev:log": "node -e \"const fs=require('fs'); const logDir='logs'; if(!fs.existsSync(logDir)) fs.mkdirSync(logDir); const logFile='logs/dev-server_'+new Date().toISOString().replace(/:/g,'-').split('.')[0]+'.log'; const spawn=require('child_process').spawn; const proc=spawn('npm',['run','dev'],{shell:true}); const stream=fs.createWriteStream(logFile); proc.stdout.pipe(process.stdout); proc.stderr.pipe(process.stderr); proc.stdout.pipe(stream); proc.stderr.pipe(stream); console.log('Logging to:',logFile);\"",
+    "prebuild": "node scripts/sync-config.js",
     "build": "next build",
     "start": "node server.js",
     "lint": "next lint"

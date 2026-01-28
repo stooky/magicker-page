@@ -1,19 +1,12 @@
 import axios from 'axios';
-import { Pool } from 'pg';
 
 /**
  * Webhook endpoint to receive events from Botpress
  * This can capture lead data, conversation events, and custom bot actions
  */
 
-// Database connection pool
-const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB,
-    password: process.env.DB_PASSWORD,
-    port: process.env.DB_PORT,
-});
+// Shared database connection pool (singleton)
+const pool = require('../../../components/utils/database');
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {

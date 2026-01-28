@@ -19,7 +19,11 @@ export default async function handler(req, res) {
             }
         } catch (err) {
             console.error('Error retrieving data:', err.message);
-            res.status(500).json({ error: err.message });
+            res.status(200).json({
+                success: false,
+                message: 'Database unavailable',
+                error: err.message
+            });
         }
     } else {
         res.status(405).json({ message: 'Method not allowed' });

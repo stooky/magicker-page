@@ -1,10 +1,4 @@
 import React, { useEffect, useState, useRef } from 'react';
-import '../src/css/main.css';
-import '../src/css/mockbox.css';
-import '../src/css/thumbnail.css';
-import '../src/css/ai_agent.css';
-import '../src/css/weird_stuff.css';
-import '../src/css/style.css';
 import { DEBUG_BOTPRESS_REQUESTS, DEBUG_OPTIONS, SETTING_KB } from '../configuration/debugConfig';
 import { CONFIG } from '../configuration/masterConfig';
 

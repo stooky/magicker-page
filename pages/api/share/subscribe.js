@@ -1,6 +1,7 @@
 // pages/api/share/subscribe.js
 // Subscribe an email to receive the shareable link for an existing domain
 const pool = require('../../../components/utils/database');
+const { isValidEmail } = require('../../../lib/validation');
 import { sendShareableLinkEmail, isEmailConfigured } from '../../../lib/emailService';
 
 export default async function handler(req, res) {
@@ -14,6 +15,13 @@ export default async function handler(req, res) {
         return res.status(400).json({
             success: false,
             error: 'Email and domain are required'
+        });
+    }
+
+    if (!isValidEmail(email)) {
+        return res.status(400).json({
+            success: false,
+            error: 'Invalid email format'
         });
     }
 
@@ -122,7 +130,8 @@ export default async function handler(req, res) {
         console.error('[subscribe] Database error:', err.message);
         return res.status(200).json({
             success: false,
-            error: 'Failed to subscribe'
+            error: err.message,
+            message: 'Failed to subscribe'
         });
     }
 }
