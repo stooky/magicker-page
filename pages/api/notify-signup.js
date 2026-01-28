@@ -1,9 +1,8 @@
 // pages/api/notify-signup.js
 // Send signup notifications: one to admin (with full details), one to submitter
-const { Resend } = require('resend');
+import { getResendClient, isResendConfigured } from '../../lib/resendClient';
+import { extractDomain } from '../../lib/domainUtils';
 const pool = require('../../components/utils/database');
-
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // Format date for display
 function formatDate(dateStr) {
@@ -19,16 +18,7 @@ function formatDate(dateStr) {
     });
 }
 
-// Extract domain from URL for display
-function extractDomain(url) {
-    if (!url) return 'N/A';
-    try {
-        const parsed = url.startsWith('http') ? new URL(url) : new URL(`https://${url}`);
-        return parsed.hostname.replace(/^www\./, '');
-    } catch {
-        return url;
-    }
-}
+// Domain extraction now uses shared lib/domainUtils.js
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
@@ -38,6 +28,7 @@ export default async function handler(req, res) {
     const { email, website } = req.body;
     console.log('[notify-signup] Called with:', { email, website });
 
+    const resend = getResendClient();
     if (!resend) {
         console.log('[notify-signup] Resend not configured (missing RESEND_API_KEY)');
         return res.status(200).json({ success: false, reason: 'email not configured' });
@@ -48,39 +39,55 @@ export default async function handler(req, res) {
     const notifyTo = process.env.NOTIFY_EMAIL;
     const results = { admin: null, user: null };
 
-    // Fetch visitor data from database for admin email
+    // Fetch visitor data from database for admin email (single query with CTEs)
     let currentVisitor = null;
     let relatedVisitors = [];
     let totalCount = 0;
     const domain = extractDomain(website);
 
     try {
-        // 1. Find current visitor by email + domain
-        const currentResult = await pool.query(`
-            SELECT sessionid, email, website, companyname, slug, kb_file_id,
-                   share_email_sent, first_message_at, created_at, updated_at
-            FROM websitevisitors
-            WHERE email = $1 AND website ILIKE $2
-            ORDER BY created_at DESC
-            LIMIT 1;
+        // Combined query: current visitor + related visitors + total count in ONE database call
+        const result = await pool.query(`
+            WITH current_visitor AS (
+                SELECT sessionid, email, website, companyname, slug, kb_file_id,
+                       share_email_sent, first_message_at, created_at, updated_at,
+                       'current' as _type
+                FROM websitevisitors
+                WHERE email = $1 AND website ILIKE $2
+                ORDER BY created_at DESC
+                LIMIT 1
+            ),
+            related_visitors AS (
+                SELECT sessionid, email, website, companyname, slug, kb_file_id,
+                       share_email_sent, first_message_at, created_at, updated_at,
+                       'related' as _type
+                FROM websitevisitors
+                WHERE (email = $1 OR website ILIKE $2)
+                  AND NOT (email = $1 AND website ILIKE $2)
+                ORDER BY created_at DESC
+                LIMIT 20
+            ),
+            total AS (
+                SELECT COUNT(*)::int as total_count FROM websitevisitors
+            )
+            SELECT * FROM current_visitor
+            UNION ALL
+            SELECT * FROM related_visitors
+            UNION ALL
+            SELECT NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                   'count:' || total_count FROM total;
         `, [email, `%${domain}%`]);
-        currentVisitor = currentResult.rows[0] || null;
 
-        // 2. Find related visitors (same email OR same domain, excluding current)
-        const relatedResult = await pool.query(`
-            SELECT sessionid, email, website, companyname, slug, kb_file_id,
-                   share_email_sent, first_message_at, created_at, updated_at
-            FROM websitevisitors
-            WHERE (email = $1 OR website ILIKE $2)
-              AND NOT (email = $1 AND website ILIKE $2)
-            ORDER BY created_at DESC
-            LIMIT 20;
-        `, [email, `%${domain}%`]);
-        relatedVisitors = relatedResult.rows;
-
-        // 3. Get total signup count
-        const countResult = await pool.query(`SELECT COUNT(*) FROM websitevisitors;`);
-        totalCount = parseInt(countResult.rows[0].count, 10);
+        // Parse combined results
+        for (const row of result.rows) {
+            if (row._type === 'current') {
+                currentVisitor = row;
+            } else if (row._type === 'related') {
+                relatedVisitors.push(row);
+            } else if (row._type?.startsWith('count:')) {
+                totalCount = parseInt(row._type.split(':')[1], 10);
+            }
+        }
 
         console.log(`[notify-signup] Found current: ${!!currentVisitor}, related: ${relatedVisitors.length}, total: ${totalCount}`);
     } catch (err) {

@@ -12,7 +12,7 @@
  * Returns: { success: true, theme: { name, avatar, primaryColor, secondaryColor } }
  */
 
-import OpenAI from 'openai';
+import { getOpenAIClient } from '../../lib/openaiClient';
 
 // Increase body size limit for base64 images (default is 1MB)
 export const config = {
@@ -44,14 +44,13 @@ export default async function handler(req, res) {
         return res.status(200).json({ success: true, theme: DEFAULT_THEME, source: 'default' });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    const openai = getOpenAIClient();
+    if (!openai) {
         console.error('[ANALYZE] OpenAI API key not configured');
         return res.status(200).json({ success: true, theme: DEFAULT_THEME, source: 'default' });
     }
 
     try {
-        const openai = new OpenAI({ apiKey });
 
         console.log('[ANALYZE] Sending thumbnail to OpenAI Vision...');
 
@@ -107,7 +106,7 @@ Guidelines for avatar:
                     ]
                 }
             ],
-            max_tokens: 300,
+            max_tokens: 200, // Reduced from 300 - typical response is ~100 tokens
             temperature: 0.7
         });
 

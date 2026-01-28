@@ -1,6 +1,7 @@
 // pages/api/dbCheckDomain.js
 // Check if a domain has already been scraped
 const pool = require('../../components/utils/database');
+const { isValidUrl } = require('../../lib/validation');
 
 export default async function handler(req, res) {
     if (req.method === 'GET') {
@@ -9,6 +10,13 @@ export default async function handler(req, res) {
         if (!website) {
             return res.status(400).json({ error: 'Website parameter is required' });
         }
+
+        if (!isValidUrl(website)) {
+            return res.status(400).json({ error: 'Invalid website URL format' });
+        }
+
+        // Cache for 5 minutes - domain existence doesn't change often
+        res.setHeader('Cache-Control', 'public, max-age=300');
 
         try {
             // Normalize the URL (remove protocol, www, trailing slash)

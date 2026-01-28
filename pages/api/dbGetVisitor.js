@@ -5,6 +5,13 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
         const { sessionID } = req.query;
 
+        if (!sessionID) {
+            return res.status(400).json({ error: 'sessionID parameter is required' });
+        }
+
+        // Cache for 2 minutes
+        res.setHeader('Cache-Control', 'public, max-age=120');
+
         try {
             const query = `
                 SELECT mylistingurl FROM WebsiteVisitors WHERE sessionID = $1;

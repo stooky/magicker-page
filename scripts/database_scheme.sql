@@ -52,3 +52,11 @@ BEGIN
     END IF;
 END
 $$;
+
+-- Performance indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_websitevisitors_email ON public.websitevisitors(email);
+CREATE INDEX IF NOT EXISTS idx_websitevisitors_slug ON public.websitevisitors(slug);
+CREATE INDEX IF NOT EXISTS idx_websitevisitors_created_at ON public.websitevisitors(created_at DESC);
+-- Functional index for normalized website lookups (used by dbCheckDomain)
+CREATE INDEX IF NOT EXISTS idx_websitevisitors_website_normalized
+    ON public.websitevisitors(LOWER(REPLACE(REPLACE(REPLACE(website, 'http://', ''), 'https://', ''), 'www.', '')));
