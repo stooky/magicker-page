@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { SCREEN_STATES, BOTPRESS_STATUS, SNIPPET_DISPLAY_TIME } from '../configuration/screenStates';
 import FormComponent from '../components/FormComponent';
 import LoadingComponent from '../components/LoadingComponent';
@@ -43,6 +43,10 @@ const MainContainer = () => {
     // Bot theme state (AI-generated from thumbnail, or default from config)
     const [botTheme, setBotTheme] = useState(CONFIG.defaultBotTheme);
 
+    // Memoize bot theme to prevent unnecessary preload re-triggers
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const memoizedBotTheme = useMemo(() => botTheme, [botTheme.name, botTheme.primaryColor]);
+
     // Preload webchat during scanning phase (via shared module)
     useEffect(() => {
         if (isScanning && !webchatPreloaded) {
@@ -51,9 +55,9 @@ const MainContainer = () => {
                 setWebchatPreloaded(true);
                 return;
             }
-            preloadWebchat(botTheme).then(() => setWebchatPreloaded(true));
+            preloadWebchat(memoizedBotTheme).then(() => setWebchatPreloaded(true));
         }
-    }, [isScanning, webchatPreloaded]);
+    }, [isScanning, webchatPreloaded, memoizedBotTheme]);
 
     // Define the delay function
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -232,10 +236,20 @@ useEffect(() => {
                     console.log('Could not parse existing bot config, will create new session');
                 }
 
-                // Set the screenshot - fetch fresh if missing or invalid
+                // Set the screenshot - only fetch if missing/invalid OR older than 30 days
                 let screenshotToUse = existingData.screenshoturl;
-                if (!screenshotToUse || screenshotToUse === 'TEMP_URL' || !screenshotToUse.startsWith('/screenshots/')) {
-                    console.log('Screenshot missing or invalid, fetching fresh screenshot...');
+                const screenshotAge = existingData.created_at
+                    ? Date.now() - new Date(existingData.created_at).getTime()
+                    : Infinity;
+                const maxScreenshotAge = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+                const needsFreshScreenshot = !screenshotToUse ||
+                    screenshotToUse === 'TEMP_URL' ||
+                    !screenshotToUse.startsWith('/screenshots/') ||
+                    screenshotAge > maxScreenshotAge;
+
+                if (needsFreshScreenshot) {
+                    console.log(`Screenshot needs refresh: missing=${!screenshotToUse}, age=${Math.round(screenshotAge / 86400000)}d`);
                     try {
                         const freshScreenshot = await fetch(`/api/get-screenshot?url=${encodeURIComponent(website)}&sessionID=${existingData.sessionid}`);
                         const freshData = await freshScreenshot.json();
@@ -255,6 +269,8 @@ useEffect(() => {
                     } catch (err) {
                         console.log('Failed to fetch fresh screenshot:', err.message);
                     }
+                } else {
+                    console.log(`Using cached screenshot (age: ${Math.round(screenshotAge / 86400000)}d)`);
                 }
                 setScreenshotUrl(screenshotToUse);
 

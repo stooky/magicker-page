@@ -35,17 +35,42 @@ export default async function handler(req, res) {
     console.log(`[subscribe] New subscription request: ${email} for ${normalizedDomain}`);
 
     try {
-        // Insert subscriber (ON CONFLICT handles duplicates gracefully)
-        const insertResult = await pool.query(
-            `INSERT INTO domain_subscribers (domain, email)
-             VALUES ($1, $2)
-             ON CONFLICT (domain, email) DO UPDATE SET subscribed_at = NOW()
-             RETURNING id, email_sent`,
-            [normalizedDomain, email]
+        // Combined query: Insert subscriber AND fetch chatbot config in one round-trip
+        const result = await pool.query(
+            `WITH subscriber_upsert AS (
+                INSERT INTO domain_subscribers (domain, email)
+                VALUES ($1, $2)
+                ON CONFLICT (domain, email) DO UPDATE SET subscribed_at = NOW()
+                RETURNING id, email_sent
+            ),
+            chatbot_info AS (
+                SELECT slug, companyname, website
+                FROM websitevisitors
+                WHERE slug = $3
+                LIMIT 1
+            )
+            SELECT
+                s.id as subscriber_id,
+                s.email_sent,
+                c.slug,
+                c.companyname,
+                c.website
+            FROM subscriber_upsert s
+            LEFT JOIN chatbot_info c ON true`,
+            [normalizedDomain, email, slug]
         );
 
-        const subscriberId = insertResult.rows[0].id;
-        const alreadySentEmail = insertResult.rows[0].email_sent;
+        if (result.rows.length === 0) {
+            console.log(`[subscribe] Query returned no rows`);
+            return res.status(500).json({
+                success: false,
+                error: 'Failed to process subscription'
+            });
+        }
+
+        const row = result.rows[0];
+        const subscriberId = row.subscriber_id;
+        const alreadySentEmail = row.email_sent;
 
         // If we already sent this person an email, don't send again
         if (alreadySentEmail) {
@@ -57,16 +82,8 @@ export default async function handler(req, res) {
             });
         }
 
-        // Get the chatbot config for this domain to build the share URL
-        const configResult = await pool.query(
-            `SELECT slug, companyname, website
-             FROM websitevisitors
-             WHERE slug = $1
-             LIMIT 1`,
-            [slug]
-        );
-
-        if (configResult.rows.length === 0) {
+        // Check if chatbot was found
+        if (!row.slug) {
             console.log(`[subscribe] No chatbot found for slug: ${slug}`);
             return res.status(404).json({
                 success: false,
@@ -74,7 +91,7 @@ export default async function handler(req, res) {
             });
         }
 
-        const chatbot = configResult.rows[0];
+        const chatbot = { slug: row.slug, companyname: row.companyname, website: row.website };
         const shareUrl = `${process.env.SHARE_LINK_BASE_URL || 'https://mb.membies.com'}/${chatbot.slug}`;
 
         // Send the shareable link email

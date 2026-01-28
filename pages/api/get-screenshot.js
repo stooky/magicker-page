@@ -4,7 +4,50 @@ import path from 'path';
 // Ensure screenshots directory exists
 const screenshotsDir = path.join(process.cwd(), 'public', 'screenshots');
 
+// Cleanup old screenshots (runs periodically, non-blocking)
+let lastCleanup = 0;
+const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // Run at most once per day
+const MAX_SCREENSHOT_AGE = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function cleanupOldScreenshots() {
+    const now = Date.now();
+    if (now - lastCleanup < CLEANUP_INTERVAL) return; // Skip if ran recently
+    lastCleanup = now;
+
+    // Run cleanup async, don't block the request
+    setImmediate(() => {
+        try {
+            if (!fs.existsSync(screenshotsDir)) return;
+
+            const files = fs.readdirSync(screenshotsDir);
+            let deletedCount = 0;
+
+            for (const file of files) {
+                try {
+                    const filepath = path.join(screenshotsDir, file);
+                    const stats = fs.statSync(filepath);
+                    if (now - stats.mtimeMs > MAX_SCREENSHOT_AGE) {
+                        fs.unlinkSync(filepath);
+                        deletedCount++;
+                    }
+                } catch (e) {
+                    // Skip files that can't be accessed
+                }
+            }
+
+            if (deletedCount > 0) {
+                console.log(`[screenshot-cleanup] Deleted ${deletedCount} old screenshots`);
+            }
+        } catch (err) {
+            console.log('[screenshot-cleanup] Cleanup failed (non-critical):', err.message);
+        }
+    });
+}
+
 export default async function handler(req, res) {
+    // Trigger periodic cleanup (non-blocking)
+    cleanupOldScreenshots();
+
     const { url, sessionID } = req.query;
 
     if (!url) {

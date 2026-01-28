@@ -5,7 +5,7 @@ const { isValidUrl } = require('../../lib/validation');
 
 export default async function handler(req, res) {
     if (req.method === 'GET') {
-        const { website } = req.query;
+        const { website, light } = req.query;
 
         if (!website) {
             return res.status(400).json({ error: 'Website parameter is required' });
@@ -25,9 +25,15 @@ export default async function handler(req, res) {
                 .replace(/^www\./, '')
                 .replace(/\/$/, '');
 
-            // Prefer records with valid bot config (mylistingurl is JSON, not EMPTY)
-            // Convert screenshoturl from bytea to text if needed
-            const query = `
+            // Light mode: just check existence (faster, smaller response)
+            // Full mode: return all data including screenshot
+            const query = light === '1' ? `
+                SELECT sessionid, slug
+                FROM websitevisitors
+                WHERE REPLACE(REPLACE(REPLACE(website, 'http://', ''), 'https://', ''), 'www.', '') LIKE $1
+                ORDER BY created_at DESC
+                LIMIT 1;
+            ` : `
                 SELECT sessionid, email, website, companyname, mylistingurl, slug,
                     CASE
                         WHEN screenshoturl IS NULL THEN NULL

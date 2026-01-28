@@ -13,12 +13,15 @@ import fs from 'fs';
 import path from 'path';
 import { DEBUG_BOTPRESS_REQUESTS, DEBUG_OPTIONS, logBotpressRequest, logBotpressResponse } from '../../../configuration/debugConfig';
 
-// Helper to wait for indexing to complete
+// Helper to wait for indexing to complete with exponential backoff
 async function waitForIndexing(fileId, token, workspaceId, botId, maxWaitMs = 30000) {
     const startTime = Date.now();
-    const pollInterval = 1000; // Check every 1 second
+    let attemptNumber = 0;
 
     while (Date.now() - startTime < maxWaitMs) {
+        // Exponential backoff: 1s, 1.5s, 2.25s, 3.375s, max 5s
+        const pollInterval = Math.min(1000 * Math.pow(1.5, attemptNumber), 5000);
+        attemptNumber++;
         try {
             const statusUrl = `https://api.botpress.cloud/v1/files/${fileId}`;
             const statusHeaders = {
