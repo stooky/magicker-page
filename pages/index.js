@@ -8,6 +8,7 @@ import ScanningComponent from '../components/ScanningComponent';
 import Valhallah from '../components/Valhallah.js';
 import ThemeProvider from '../components/ThemeProvider';
 import { CONFIG } from '../configuration/masterConfig';
+import { preloadWebchat, removeHideCSS, state as webchatState } from '../lib/botpress-webchat';
 import axios from 'axios';
 import { domainToSlug } from '../lib/slugUtils';
 
@@ -42,154 +43,15 @@ const MainContainer = () => {
     // Bot theme state (AI-generated from thumbnail, or default from config)
     const [botTheme, setBotTheme] = useState(CONFIG.defaultBotTheme);
 
-    // Preload webchat during scanning phase
+    // Preload webchat during scanning phase (via shared module)
     useEffect(() => {
         if (isScanning && !webchatPreloaded) {
-            console.log('[WEBCHAT PRELOAD] Starting webchat preload during scanning...');
-
-            // Check if already loaded
-            if (window.__BOTPRESS_PRELOADED__) {
+            if (webchatState.preloaded) {
                 console.log('[WEBCHAT PRELOAD] Already preloaded, skipping');
                 setWebchatPreloaded(true);
                 return;
             }
-
-            // Add CSS to hide webchat during preload - aggressive selectors for Botpress v2.2
-            const hideStyle = document.createElement('style');
-            hideStyle.id = 'botpress-preload-hide';
-            hideStyle.textContent = `
-                #bp-web-widget-container,
-                .bpw-widget-btn,
-                [class*="WebchatContainer"],
-                [class*="webchat"],
-                [class*="Webchat"],
-                [id*="bp-"],
-                [id*="botpress"],
-                div[class^="bpw-"],
-                div[class*=" bpw-"],
-                iframe[title*="chat"],
-                iframe[title*="Chat"],
-                iframe[src*="botpress"] {
-                    opacity: 0 !important;
-                    pointer-events: none !important;
-                    visibility: hidden !important;
-                    position: fixed !important;
-                    left: -9999px !important;
-                    top: -9999px !important;
-                }
-            `;
-            document.head.appendChild(hideStyle);
-            console.log('[WEBCHAT PRELOAD] Added hide CSS');
-
-            // Add loading overlay with animation to cover chat bubble
-            const overlayBox = document.createElement('div');
-            overlayBox.id = 'webchat-loading-overlay';
-            overlayBox.innerHTML = `
-                <img
-                    src="${CONFIG.branding.loadingAnimationPath}"
-                    alt="Loading..."
-                    style="
-                        position: fixed;
-                        bottom: 20px;
-                        right: 20px;
-                        width: 80px;
-                        height: 80px;
-                        object-fit: cover;
-                        z-index: 99999;
-                        border-radius: 50%;
-                    "
-                />
-            `;
-            document.body.appendChild(overlayBox);
-            console.log('[WEBCHAT PRELOAD] Added megaman loading overlay');
-
-            // Load inject script
-            const injectScript = document.createElement('script');
-            injectScript.src = 'https://cdn.botpress.cloud/webchat/v2.2/inject.js';
-
-            injectScript.onload = async () => {
-                console.log('[WEBCHAT PRELOAD] Inject script loaded');
-
-                // Wait for window.botpress
-                let attempts = 0;
-                while (!window.botpress && attempts < 50) {
-                    await new Promise(r => setTimeout(r, 100));
-                    attempts++;
-                }
-
-                if (!window.botpress) {
-                    console.error('[WEBCHAT PRELOAD] window.botpress not available');
-                    return;
-                }
-
-                const bp = window.botpress;
-                console.log('[WEBCHAT PRELOAD] window.botpress available');
-
-                // Clear old Botpress localStorage to force fresh session
-                const keysToRemove = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && (key.startsWith('bp/') || key.includes('botpress'))) {
-                        keysToRemove.push(key);
-                    }
-                }
-                keysToRemove.forEach(key => localStorage.removeItem(key));
-                if (keysToRemove.length > 0) {
-                    console.log(`[WEBCHAT PRELOAD] Cleared ${keysToRemove.length} Botpress localStorage keys`);
-                }
-
-                // Set up conversation listener
-                window.__BOTPRESS_CONVERSATION_READY__ = false;
-                window.__BOTPRESS_CONVERSATION_ID__ = null;
-
-                bp.on('conversation', (convId) => {
-                    console.log('[WEBCHAT PRELOAD] Conversation started:', convId);
-                    window.__BOTPRESS_CONVERSATION_READY__ = true;
-                    window.__BOTPRESS_CONVERSATION_ID__ = convId;
-                });
-
-                bp.on('webchat:ready', () => {
-                    console.log('[WEBCHAT PRELOAD] Webchat ready');
-                });
-
-                // Get theme from window global (set by analyze-thumbnail API)
-                const theme = window.__BOTPRESS_THEME__ || {
-                    name: 'Marv',
-                    avatar: 'https://api.dicebear.com/7.x/bottts-neutral/svg?seed=marv&backgroundColor=b6e3f4&eyes=happy&mouth=smile01',
-                    primaryColor: '#2563eb',
-                    description: 'Your friendly assistant'
-                };
-                console.log('[WEBCHAT PRELOAD] Using theme:', theme.name, theme.primaryColor);
-
-                // Initialize webchat but DON'T open yet
-                // Opening during preload starts conversation & bot greeting before we can send context
-                bp.init({
-                    botId: CONFIG.botpress.botId,
-                    clientId: CONFIG.botpress.clientId,
-                    configuration: {
-                        botName: theme.name,
-                        botDescription: theme.description,
-                        botAvatar: theme.avatar,
-                        color: theme.primaryColor,
-                        variant: 'solid',
-                        themeMode: 'light',
-                        fontFamily: 'inter',
-                        radius: 1
-                    }
-                });
-                console.log('[WEBCHAT PRELOAD] init() called - NOT opening yet (conversation will start in Valhallah)');
-
-                // Mark as preloaded but conversation NOT ready (Valhallah will open and send context)
-                window.__BOTPRESS_PRELOADED__ = true;
-                window.__BOTPRESS_CONVERSATION_READY__ = false;
-                setWebchatPreloaded(true);
-            };
-
-            injectScript.onerror = (err) => {
-                console.error('[WEBCHAT PRELOAD] Failed to load inject script:', err);
-            };
-
-            document.body.appendChild(injectScript);
+            preloadWebchat(botTheme).then(() => setWebchatPreloaded(true));
         }
     }, [isScanning, webchatPreloaded]);
 
@@ -240,21 +102,7 @@ useEffect(() => {
     // Remove webchat hide CSS and overlay when transitioning to chat screen
     useEffect(() => {
         if (screenState === SCREEN_STATES.CHAT_TEASE) {
-            const hideStyle = document.getElementById('botpress-preload-hide');
-            if (hideStyle) {
-                hideStyle.remove();
-                console.log('[WEBCHAT PRELOAD] Removed hide CSS - webchat now visible');
-            }
-            // Remove the loading overlay with fade out
-            const overlay = document.getElementById('webchat-loading-overlay');
-            if (overlay) {
-                overlay.style.transition = 'opacity 0.3s ease-out';
-                overlay.style.opacity = '0';
-                setTimeout(() => {
-                    overlay.remove();
-                    console.log('[WEBCHAT PRELOAD] Removed megaman overlay');
-                }, 300);
-            }
+            removeHideCSS({ fade: true });
         }
     }, [screenState]);
 
@@ -487,15 +335,15 @@ useEffect(() => {
                     if (themeData.success && themeData.theme) {
                         console.log('AI-generated theme:', themeData.theme);
                         setBotTheme(themeData.theme);
-                        // Store in window for webchat preload to access
-                        window.__BOTPRESS_THEME__ = themeData.theme;
+                        // Store in module state for webchat preload to access
+                        webchatState.theme = themeData.theme;
                     } else {
                         console.log('Using default Marv theme');
-                        window.__BOTPRESS_THEME__ = CONFIG.defaultBotTheme;
+                        webchatState.theme = CONFIG.defaultBotTheme;
                     }
                 } catch (themeError) {
                     console.error('Theme analysis failed, using Marv fallback:', themeError.message);
-                    window.__BOTPRESS_THEME__ = CONFIG.defaultBotTheme;
+                    webchatState.theme = CONFIG.defaultBotTheme;
                 }
 
                 // Now set screenshot URL (triggers scanning phase)
@@ -503,7 +351,7 @@ useEffect(() => {
             } else {
                 console.error('Error fetching screenshot:', screenshotData.error);
                 // Even if screenshot fails, set default theme
-                window.__BOTPRESS_THEME__ = CONFIG.defaultBotTheme;
+                webchatState.theme = CONFIG.defaultBotTheme;
             }
 
             // Generate slug for shareable URL
@@ -618,7 +466,7 @@ useEffect(() => {
                         sessionID: sessionID,
                         myListingUrl: JSON.stringify({ domain: domain, sessionID: sessionID }),
                         slug: domainToSlug(domain),
-                        botTheme: window.__BOTPRESS_THEME__ || botTheme,
+                        botTheme: webchatState.theme || botTheme,
                         kbFileId: currentKbFileId
                     });
                     console.log('Domain info and shareable config saved to database, kbFileId:', currentKbFileId);

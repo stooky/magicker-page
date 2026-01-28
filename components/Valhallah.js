@@ -1,76 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { DEBUG_BOTPRESS_REQUESTS, DEBUG_OPTIONS, SETTING_KB } from '../configuration/debugConfig';
 import { CONFIG } from '../configuration/masterConfig';
-
-// Simple terminal-style logging
-const log = (msg, data) => {
-    const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
-    if (data !== undefined) {
-        console.log(`[${timestamp}] [VALHALLAH] ${msg}`, data);
-    } else {
-        console.log(`[${timestamp}] [VALHALLAH] ${msg}`);
-    }
-};
-
-const logEvent = (eventName, data) => {
-    if (!DEBUG_BOTPRESS_REQUESTS || !DEBUG_OPTIONS.LOG_WEBCHAT_EVENTS) return;
-    log(`EVENT: ${eventName}`, data);
-};
-
-const logRequest = (action, data) => {
-    if (!DEBUG_BOTPRESS_REQUESTS || !DEBUG_OPTIONS.LOG_WEBCHAT_INIT) return;
-    log(`REQUEST: ${action}`, data);
-};
-
-// Clear Botpress localStorage to force fresh session
-const clearBotpressStorage = () => {
-    if (typeof window === 'undefined') return;
-
-    const keysToRemove = [];
-    for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith('bp/') || key.includes('botpress'))) {
-            keysToRemove.push(key);
-        }
-    }
-
-    keysToRemove.forEach(key => {
-        localStorage.removeItem(key);
-        log(`Cleared localStorage: ${key}`);
-    });
-
-    if (keysToRemove.length > 0) {
-        log(`Cleared ${keysToRemove.length} Botpress localStorage keys`);
-    }
-};
-
-// Wait for a condition with timeout
-const waitFor = (checkFn, maxWaitMs = 5000, intervalMs = 200) => {
-    return new Promise((resolve, reject) => {
-        const startTime = Date.now();
-
-        const check = async () => {
-            try {
-                const result = await checkFn();
-                if (result) {
-                    resolve(result);
-                    return;
-                }
-            } catch (e) {
-                // Continue waiting
-            }
-
-            if (Date.now() - startTime >= maxWaitMs) {
-                reject(new Error('Timeout waiting for condition'));
-                return;
-            }
-
-            setTimeout(check, intervalMs);
-        };
-
-        check();
-    });
-};
+import {
+    state as webchatState,
+    clearBotpressStorage,
+    openAndGreet,
+    fullInit,
+} from '../lib/botpress-webchat';
 
 export default function Valhallah({ authToken, domain, isReturning, isShareableLink = false, screenshotUrl, sessionID, website, kbFileId, botTheme = CONFIG.defaultBotTheme }) {
     const hasInitialized = useRef(false);
@@ -78,20 +13,10 @@ export default function Valhallah({ authToken, domain, isReturning, isShareableL
     const [fadeIn, setFadeIn] = useState(false);
     const [userDataConfirmed, setUserDataConfirmed] = useState(false);
 
-    // Store domain globally
-    if (typeof window !== 'undefined') {
-        window.__MAGIC_PAGE_DOMAIN__ = domain;
-        window.__MAGIC_PAGE_WEBSITE__ = website;
-        window.__MAGIC_PAGE_SESSION__ = sessionID;
-        window.__MAGIC_PAGE_KB_FILE_ID__ = kbFileId;
-        // Note: shareable links now preload botpress during init screen,
-        // so they can use the FAST PATH just like the main flow
-    }
-
     // Log on first mount
     if (!hasInitialized.current) {
-        log('--- COMPONENT MOUNTED ---');
-        log('Props:', {
+        console.log('[VALHALLAH] --- COMPONENT MOUNTED ---');
+        console.log('[VALHALLAH] Props:', {
             authToken: authToken ? authToken.substring(0, 20) + '...' : 'NOT PROVIDED',
             domain: domain || 'NOT PROVIDED',
             website: website || 'NOT PROVIDED',
@@ -102,7 +27,6 @@ export default function Valhallah({ authToken, domain, isReturning, isShareableL
             hasScreenshot: !!screenshotUrl,
             botTheme: botTheme?.name || 'DEFAULT'
         });
-        log('Theme:', botTheme?.name, '| Color:', botTheme?.primaryColor);
     }
 
     // Fade-in animation
@@ -116,460 +40,44 @@ export default function Valhallah({ authToken, domain, isReturning, isShareableL
     // Main webchat initialization
     useEffect(() => {
         if (hasInitialized.current) {
-            log('Already initialized, skipping');
+            console.log('[VALHALLAH] Already initialized, skipping');
             return;
         }
         hasInitialized.current = true;
 
-        log('--- STARTING WEBCHAT INITIALIZATION ---');
-        log('Target domain:', domain);
-        log('Target fileId:', kbFileId);
+        console.log('[VALHALLAH] --- STARTING WEBCHAT INITIALIZATION ---');
+        console.log('[VALHALLAH] Target domain:', domain);
+        console.log('[VALHALLAH] Target fileId:', kbFileId);
 
         // Always clear old Botpress localStorage first (fixes stale session issues)
-        log('Clearing old Botpress localStorage...');
         clearBotpressStorage();
 
-        // Check if shareable link already did full initialization (including greeting)
-        if (window.__SHARE_CHAT_READY__ && window.__SHARE_GREETING_SENT__ && window.botpress) {
-            log('SKIP PATH: Shareable link already fully initialized!');
-            log('Chat ready:', window.__SHARE_CHAT_READY__);
-            log('Greeting sent:', window.__SHARE_GREETING_SENT__);
+        // SKIP PATH: Shareable link already did full initialization (including greeting)
+        if (webchatState.shareChatReady && webchatState.shareGreetingSent && window.botpress) {
+            console.log('[VALHALLAH] SKIP PATH: Shareable link already fully initialized!');
             setChatReady(true);
-            setUserDataConfirmed(true); // User data was already set by [slug].js
-            // Nothing to do - everything is already set up
+            setUserDataConfirmed(true);
             return;
         }
 
-        // Check if webchat was preloaded during scanning phase
-        if (window.__BOTPRESS_PRELOADED__ && window.botpress) {
-            log('FAST PATH: Webchat already preloaded!');
-            log('Conversation ready:', window.__BOTPRESS_CONVERSATION_READY__);
-            log('Conversation ID:', window.__BOTPRESS_CONVERSATION_ID__);
-
-            const bp = window.botpress;
+        // FAST PATH: Webchat was preloaded during scanning phase
+        if (webchatState.preloaded && window.botpress) {
+            console.log('[VALHALLAH] FAST PATH: Webchat already preloaded!');
             setChatReady(true);
-
-            // Use async IIFE for the FAST PATH
-            (async () => {
-                // Webchat was preloaded (script loaded + init called) but conversation not started
-                // CRITICAL ORDER: updateUser() → open() → wait for conversation → sendMessage()
-                log('FAST PATH: Starting initialization sequence...');
-
-                // ========================================
-                // STEP 1: Set user data BEFORE opening webchat
-                // ========================================
-                if (SETTING_KB === 'USERDATA') {
-                    log('========================================');
-                    log('FAST PATH Step 1: USERDATA MODE - Setting user data BEFORE conversation');
-                    log('========================================');
-
-                    try {
-                        // Verify user exists (created by init() during preload)
-                        const userBefore = await bp.getUser();
-                        if (!userBefore || !userBefore.id) {
-                            log('ERROR: User does not exist! Preload init() may have failed.');
-                            throw new Error('User not found');
-                        }
-                        log('✓ User exists. ID:', userBefore.id);
-
-                        // Set user data
-                        const dataToSet = {
-                            domain: domain,
-                            fileId: kbFileId || '',
-                            website: website,
-                            sessionID: sessionID
-                        };
-                        log('Setting user.data:', JSON.stringify(dataToSet));
-
-                        await bp.updateUser({ data: dataToSet });
-                        log('✓ updateUser() call completed');
-
-                        // Wait for sync to Botpress server
-                        await new Promise(r => setTimeout(r, 500));
-
-                        // Verify data was persisted
-                        const userAfter = await bp.getUser();
-                        log('Verifying user.data:', JSON.stringify(userAfter?.data || {}));
-
-                        if (userAfter?.data?.domain === domain) {
-                            log('✓ VERIFIED: user.data.domain =', userAfter.data.domain);
-                            setUserDataConfirmed(true);
-                        } else {
-                            log('⚠️ WARNING: user.data.domain verification failed!');
-                            log('  Expected:', domain);
-                            log('  Got:', userAfter?.data?.domain);
-                        }
-                    } catch (e) {
-                        log('ERROR setting user data:', e.message);
-                    }
-                    log('========================================');
-                }
-
-                // ========================================
-                // STEP 2: Open webchat (starts conversation)
-                // ========================================
-                log('FAST PATH Step 2: Opening webchat...');
-
-                // Set up conversation listener before opening
-                bp.on('conversation', (convId) => {
-                    log('✓ Conversation started:', convId);
-                    window.__BOTPRESS_CONVERSATION_READY__ = true;
-                    window.__BOTPRESS_CONVERSATION_ID__ = convId;
-                });
-
-                try {
-                    await bp.open();
-                    log('✓ Webchat opened');
-                } catch (e) {
-                    log('ERROR opening webchat:', e.message);
-                }
-
-                // ========================================
-                // STEP 3: Wait for conversation to start
-                // ========================================
-                log('FAST PATH Step 3: Waiting for conversation...');
-                if (!window.__BOTPRESS_CONVERSATION_READY__) {
-                    let waitStart = Date.now();
-                    while (!window.__BOTPRESS_CONVERSATION_READY__ && Date.now() - waitStart < 10000) {
-                        await new Promise(r => setTimeout(r, 200));
-                    }
-                }
-
-                if (window.__BOTPRESS_CONVERSATION_READY__) {
-                    log('✓ Conversation ready');
-                } else {
-                    log('⚠️ Conversation timeout after 10s');
-                }
-
-                // Small delay for stability
-                await new Promise(r => setTimeout(r, 300));
-
-                // ========================================
-                // STEP 4: Send message
-                // ========================================
-                log('FAST PATH Step 4: Sending message...');
-
-                // Send message with context based on SETTING_KB mode
-                try {
-                    if (SETTING_KB === 'USERDATA') {
-                        // USERDATA mode: User data was already set in Step 1 (BEFORE conversation)
-                        // Just send a clean greeting now
-                        const greeting = `Hi! I'd like to learn more about ${domain}.`;
-                        log('USERDATA mode - sending clean greeting:', greeting);
-                        await bp.sendMessage(greeting);
-                        log('✓ Message sent');
-
-                    } else if (SETTING_KB === 'MESSAGE') {
-                        const contextTag = `[CONTEXT:domain=${domain},fileId=${kbFileId || ''}]`;
-                        const greeting = `${contextTag}\nHi! I'd like to learn more about ${domain}.`;
-                        log('Sending message with embedded context:', greeting);
-                        await bp.sendMessage(greeting);
-
-                    } else if (SETTING_KB === 'EVENT') {
-                        await bp.sendEvent({
-                            type: 'setContext',
-                            payload: { domain, fileId: kbFileId || '', website, sessionID }
-                        });
-                        await new Promise(r => setTimeout(r, 300));
-                        await bp.sendMessage(`Hi! I'd like to learn more about ${domain}.`);
-
-                    } else {
-                        await bp.sendMessage(`Hi! I'd like to learn more about ${domain}.`);
-                    }
-                    log('Message sent successfully via FAST PATH!');
-                    setUserDataConfirmed(true);
-
-                    // Trigger shareable link email (fire and forget)
-                    if (!window.__SHARE_EMAIL_TRIGGERED__ && sessionID) {
-                        window.__SHARE_EMAIL_TRIGGERED__ = true;
-                        fetch('/api/share/trigger-email', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ sessionID, domain })
-                        }).then(res => res.json())
-                          .then(data => log('Share email trigger response:', data))
-                          .catch(err => log('Share email trigger failed (non-critical):', err.message));
-                    }
-                } catch (e) {
-                    log('ERROR sending via fast path:', e.message);
-                }
-
-                log('--- INITIALIZATION COMPLETE (FAST PATH) ---');
-            })();
-            return; // Exit useEffect - FAST PATH handles everything
+            openAndGreet(window.botpress, { domain, kbFileId, website, sessionID })
+                .then(() => setUserDataConfirmed(true))
+                .catch(e => console.error('[VALHALLAH] FAST PATH error:', e.message));
+            return;
         }
 
-        // NORMAL PATH: Full initialization
-        log('NORMAL PATH: Full webchat initialization...');
-
-        // Step 1: Clear old Botpress data to force fresh session
-        log('Step 1: Clearing old Botpress localStorage...');
-        clearBotpressStorage();
-
-        // Store context globally
-        window.__BOTPRESS_USER_CONTEXT__ = {
-            domain, website, sessionID, fileId: kbFileId || ''
-        };
-
-        const userDataToSet = {
-            domain: domain,
-            website: website,
-            sessionID: sessionID,
-            fileId: kbFileId || ''
-        };
-
-        // Step 2: Load inject script
-        log('Step 2: Loading inject script...');
-        const injectScript = document.createElement('script');
-        injectScript.src = 'https://cdn.botpress.cloud/webchat/v2.2/inject.js';
-
-        injectScript.onload = async () => {
-            log('Inject script loaded');
-
-            // Wait for window.botpress
-            try {
-                await waitFor(() => window.botpress, 10000, 100);
-            } catch (e) {
-                log('ERROR: window.botpress not available after 10s');
-                return;
-            }
-
-            const bp = window.botpress;
-            log('window.botpress available');
-            log('Available methods:', Object.keys(bp));
-
-            // Set up event listeners
-            bp.on('webchat:opened', () => log('Webchat opened'));
-            bp.on('webchat:closed', () => log('Webchat closed'));
-            bp.on('message', (msg) => log('Message received:', msg?.payload?.text?.substring(0, 100) || '(no text)'));
-            bp.on('error', (err) => log('ERROR:', err));
-
-            // Step 3: Set up event listeners BEFORE init()
-            log('Step 3: Setting up event listeners...');
-
-            let webchatReady = false;
-            let conversationStarted = false;
-            let conversationId = null;
-
-            // Promise that resolves when webchat is ready
-            const readyPromise = new Promise((resolve) => {
-                bp.on('webchat:ready', () => {
-                    log('EVENT: webchat:ready fired!');
-                    webchatReady = true;
-                    resolve();
-                });
-            });
-
-            // Promise that resolves when conversation starts (REQUIRED before sending messages)
-            const conversationPromise = new Promise((resolve) => {
-                bp.on('conversation', (convId) => {
-                    log('EVENT: conversation started:', convId);
-                    conversationStarted = true;
-                    conversationId = convId;
-                    resolve(convId);
-                });
-            });
-
-            // Also listen for other events for logging
-            bp.on('webchat:opened', () => log('EVENT: webchat:opened'));
-            bp.on('webchat:closed', () => log('EVENT: webchat:closed'));
-
-            // Step 4: Initialize webchat (listeners already set up)
-            log('Step 4: Initializing webchat...');
-            // Use theme from props (AI-generated or default from config)
-            const theme = botTheme || CONFIG.defaultBotTheme;
-            log('Using theme:', theme.name, theme.primaryColor);
-            const initConfig = {
-                botId: CONFIG.botpress.botId,
-                clientId: CONFIG.botpress.clientId,
-                configuration: {
-                    botName: theme.name,
-                    botDescription: theme.description || ('Your friendly AI assistant for ' + domain),
-                    botAvatar: theme.avatar,
-                    color: theme.primaryColor,
-                    variant: 'solid',
-                    themeMode: 'light',
-                    fontFamily: 'inter',
-                    radius: 1
-                }
-            };
-
-            logRequest('bp.init()', initConfig);
-            bp.init(initConfig);
-            log('init() called');
-            setChatReady(true);
-
-            // Step 5: Wait for webchat:ready event
-            log('Step 5: Waiting for webchat:ready event...');
-            await Promise.race([
-                readyPromise,
-                new Promise(r => setTimeout(r, 5000))
-            ]);
-
-            if (webchatReady) {
-                log('Webchat ready!');
-            } else {
-                log('WARN: webchat:ready timeout after 5s, proceeding anyway');
-            }
-
-            // Step 6: Call updateUser() NOW - BEFORE open() to ensure data is set before conversation
-            if (SETTING_KB === 'USERDATA') {
-                log('========================================');
-                log('Step 6: USERDATA MODE - Setting user data BEFORE conversation');
-                log('========================================');
-
-                try {
-                    // Verify user exists first
-                    const userBefore = await bp.getUser();
-                    if (!userBefore || !userBefore.id) {
-                        log('ERROR: User does not exist after init()!');
-                        throw new Error('User not found');
-                    }
-                    log('✓ User exists. ID:', userBefore.id);
-
-                    // Set user data
-                    const dataToSet = {
-                        domain: domain,
-                        fileId: kbFileId || '',
-                        website: website,
-                        sessionID: sessionID
-                    };
-                    log('Setting user.data:', JSON.stringify(dataToSet));
-
-                    await bp.updateUser({ data: dataToSet });
-                    log('✓ updateUser() call completed');
-
-                    // Wait for sync
-                    await new Promise(r => setTimeout(r, 500));
-
-                    // Verify data was set
-                    const userAfter = await bp.getUser();
-                    log('Verifying user.data:', JSON.stringify(userAfter?.data || {}));
-
-                    if (userAfter?.data?.domain === domain) {
-                        log('✓ VERIFIED: user.data.domain =', userAfter.data.domain);
-                        setUserDataConfirmed(true);
-                    } else {
-                        log('⚠️ WARNING: user.data.domain verification failed!');
-                    }
-                } catch (e) {
-                    log('ERROR: updateUser() failed:', e.message);
-                }
-
-                log('========================================');
-            }
-
-            // Step 7: Open webchat (with retry for returning visitors)
-            log('Step 7: Opening webchat...');
-            let openAttempts = 0;
-            const maxAttempts = 3;
-            while (openAttempts < maxAttempts) {
-                try {
-                    openAttempts++;
-                    await bp.open();
-                    log('Webchat opened on attempt', openAttempts);
-                    break;
-                } catch (e) {
-                    log('Open attempt', openAttempts, 'failed:', e.message);
-                    if (openAttempts < maxAttempts) {
-                        await new Promise(r => setTimeout(r, 500));
-                    }
-                }
-            }
-
-            // Step 8: Wait for conversation to start (REQUIRED before sending messages)
-            log('Step 8: Waiting for conversation to start...');
-            await Promise.race([
-                conversationPromise,
-                new Promise(r => setTimeout(r, 10000))  // 10 second timeout
-            ]);
-
-            if (conversationStarted) {
-                log('Conversation ready! ID:', conversationId);
-            } else {
-                log('WARN: Conversation timeout after 10s, trying to send anyway');
-            }
-
-            // Small additional delay for stability
-            await new Promise(r => setTimeout(r, 500));
-
-            log('Step 9: Sending greeting...');
-            log('SETTING_KB mode:', SETTING_KB);
-
-            try {
-                if (SETTING_KB === 'USERDATA') {
-                    // USERDATA mode: Context already set via webchat:initialized + updateUser()
-                    // Just send a clean greeting
-                    const greeting = `Hi! I'd like to learn more about ${domain}.`;
-                    log('USERDATA mode - context set via updateUser, sending clean greeting:', greeting);
-                    await bp.sendMessage(greeting);
-
-                } else if (SETTING_KB === 'EVENT') {
-                    // EVENT mode: Send invisible event with context, then clean greeting
-                    log('Sending context via EVENT...');
-                    await bp.sendEvent({
-                        type: 'setContext',
-                        payload: {
-                            domain: domain,
-                            fileId: kbFileId || '',
-                            website: website,
-                            sessionID: sessionID
-                        }
-                    });
-                    log('Context event sent');
-
-                    // Wait a moment for event to be processed
-                    await new Promise(r => setTimeout(r, 500));
-
-                    // Send clean greeting (no context tag visible)
-                    const greeting = `Hi! I'd like to learn more about ${domain}.`;
-                    log('Sending clean greeting:', greeting);
-                    await bp.sendMessage(greeting);
-
-                } else {
-                    // MESSAGE mode: Embed context in visible message
-                    const contextTag = `[CONTEXT:domain=${domain},fileId=${kbFileId || ''}]`;
-                    const greeting = `${contextTag}\nHi! I'd like to learn more about ${domain}.`;
-                    log('Sending message with embedded context:', greeting);
-                    await bp.sendMessage(greeting);
-                }
-                log('Auto-greeting sent successfully');
-
-                // Trigger shareable link email (fire and forget)
-                if (!window.__SHARE_EMAIL_TRIGGERED__ && sessionID) {
-                    window.__SHARE_EMAIL_TRIGGERED__ = true;
-                    fetch('/api/share/trigger-email', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ sessionID, domain })
-                    }).then(res => res.json())
-                      .then(data => log('Share email trigger response:', data))
-                      .catch(err => log('Share email trigger failed (non-critical):', err.message));
-                }
-
-                // Final verification
-                try {
-                    const finalUser = await bp.getUser();
-                    log('--- FINAL USER STATE ---');
-                    log('userId:', finalUser?.id || 'N/A');
-                    log('userData:', finalUser?.data || '(empty)');
-                } catch (e) {
-                    log('Could not get final user state');
-                }
-
-            } catch (e) {
-                log('ERROR: Failed to send greeting:', e);
-            }
-
-            log('--- INITIALIZATION COMPLETE ---');
-        };
-
-        injectScript.onerror = (error) => {
-            log('ERROR: Failed to load inject.js:', error);
-        };
-
-        log('Appending inject script to document');
-        document.body.appendChild(injectScript);
+        // NORMAL PATH: Full initialization from scratch
+        console.log('[VALHALLAH] NORMAL PATH: Full webchat initialization...');
+        fullInit({ domain, kbFileId, website, sessionID, theme: botTheme, retryOpen: true })
+            .then(() => {
+                setChatReady(true);
+                setUserDataConfirmed(true);
+            })
+            .catch(e => console.error('[VALHALLAH] NORMAL PATH error:', e.message));
 
     }, [domain, sessionID, website, kbFileId, botTheme]);
 
