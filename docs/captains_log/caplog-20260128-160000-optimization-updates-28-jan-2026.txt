@@ -1,0 +1,279 @@
+================================================================================
+CAPTAIN'S LOG: optimization-updates-28-jan-2026
+Date: 2026-01-28 16:00:00
+Previous Log: caplog-20260123-014500-email-notifications-v1-working.txt
+================================================================================
+
+## Summary
+Major codebase optimization in two phases:
+1. Botpress init deduplication - consolidated 4 duplicate init paths (~880 lines)
+   into a single shared module, eliminated 12 window globals
+2. Performance optimizations - singletons, DB indexes, query consolidation,
+   retry logic, response caching
+
+Net result: 16 files changed, 865 insertions, 996 deletions (-131 lines)
+
+## Current State
+The Magic Page application now has:
+- Single shared Botpress webchat module (lib/botpress-webchat.js)
+- No more window.__* globals (replaced with ES module state)
+- Valhallah.js reduced from 662 to 169 lines (75% smaller)
+- Singleton patterns for OpenAI and Resend clients
+- Database indexes for common query patterns
+- Consolidated CTE queries reducing DB round-trips
+- Exponential backoff retry for web scraping
+- Response caching on read-only API endpoints
+
+## Work Completed
+
+### Phase 1: Botpress Init Deduplication (commit 461db18)
+
+#### Problem
+Botpress initialization was duplicated across 4 paths:
+| Path       | File         | Lines |
+|------------|--------------|-------|
+| PRELOAD    | index.js     | ~150  |
+| FAST       | Valhallah.js | ~160  |
+| NORMAL     | Valhallah.js | ~270  |
+| SHAREABLE  | [slug].js    | ~220  |
+
+Each path had identical operations: CSS hide injection, localStorage clearing,
+bp.init(), bp.updateUser(), bp.open(), conversation wait loop, sendMessage.
+
+#### Solution: lib/botpress-webchat.js (576 lines)
+
+Created shared module with:
+
+1. **Module-level state** (replaces 12 window globals):
+   ```javascript
+   let _preloaded = false;
+   let _conversationReady = false;
+   let _conversationId = null;
+   let _shareChatReady = false;
+   let _shareGreetingSent = false;
+   let _shareEmailTriggered = false;
+   let _theme = null;
+
+   export const state = {
+       get preloaded() { return _preloaded; },
+       set preloaded(v) { _preloaded = v; },
+       // ... same pattern for all
+   };
+   ```
+
+2. **Primitive operations** (shared building blocks):
+   - injectHideCSS() / removeHideCSS()
+   - injectLoadingOverlay() / removeLoadingOverlay()
+   - clearBotpressStorage()
+   - loadInjectScript()
+   - waitForBotpress()
+   - buildInitConfig()
+   - setUserData()
+   - waitForConversation()
+   - sendGreeting()
+   - triggerShareEmail()
+
+3. **Three orchestrators** (one per use case):
+   - preloadWebchat(theme) - called during scanning, loads but doesn't open
+   - openAndGreet(bp, opts) - called when preload detected, just opens
+   - fullInit(opts) - full init from scratch (normal + shareable paths)
+
+#### Component Refactors
+
+**Valhallah.js: 662 -> 169 lines (75% reduction)**
+```javascript
+// Before: 450 lines of init logic across 3 code paths
+// After: 30 lines
+useEffect(() => {
+    if (hasInitialized.current) return;
+    hasInitialized.current = true;
+    clearBotpressStorage();
+
+    // SKIP: shareable link already did full init
+    if (webchatState.shareChatReady && webchatState.shareGreetingSent && window.botpress) {
+        setChatReady(true); setUserDataConfirmed(true); return;
+    }
+    // FAST: webchat preloaded during scanning
+    if (webchatState.preloaded && window.botpress) {
+        setChatReady(true);
+        openAndGreet(window.botpress, { domain, kbFileId, website, sessionID })
+            .then(() => setUserDataConfirmed(true));
+        return;
+    }
+    // NORMAL: full init from scratch
+    fullInit({ domain, kbFileId, website, sessionID, theme: botTheme, retryOpen: true })
+        .then(() => { setChatReady(true); setUserDataConfirmed(true); });
+}, [domain, sessionID, website, kbFileId, botTheme]);
+```
+
+**pages/index.js: 709 -> 556 lines**
+- Replaced 150-line preload useEffect with 7 lines
+- Changed window.__BOTPRESS_THEME__ writes to webchatState.theme
+
+**pages/[slug].js: 506 -> 287 lines**
+- Replaced 220-line initializeBotpress() with module call
+
+#### Window Globals Eliminated
+
+| Global                            | Replacement           |
+|-----------------------------------|-----------------------|
+| window.__BOTPRESS_PRELOADED__     | state.preloaded       |
+| window.__BOTPRESS_CONVERSATION_READY__ | state.conversationReady |
+| window.__BOTPRESS_CONVERSATION_ID__ | state.conversationId |
+| window.__SHARE_CHAT_READY__       | state.shareChatReady  |
+| window.__SHARE_GREETING_SENT__    | state.shareGreetingSent |
+| window.__SHARE_EMAIL_TRIGGERED__  | state.shareEmailTriggered |
+| window.__BOTPRESS_THEME__         | state.theme           |
+| window.__BOTPRESS_USER_CONTEXT__  | DELETED (dead code)   |
+| window.__MAGIC_PAGE_DOMAIN__      | DELETED (dead code)   |
+| window.__MAGIC_PAGE_WEBSITE__     | DELETED (dead code)   |
+| window.__MAGIC_PAGE_SESSION__     | DELETED (dead code)   |
+| window.__MAGIC_PAGE_KB_FILE_ID__  | DELETED (dead code)   |
+
+### Phase 2: Performance Optimizations (commit 4bb0b6b)
+
+#### 1. OpenAI Client Singleton (lib/openaiClient.js)
+```javascript
+let openaiInstance = null;
+export function getOpenAIClient() {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return null;
+    if (!openaiInstance) {
+        openaiInstance = new OpenAI({ apiKey });
+    }
+    return openaiInstance;
+}
+```
+Used by: analyze-thumbnail.js, openai-extractor.js
+
+#### 2. Resend Client Singleton (lib/resendClient.js)
+Same pattern as OpenAI. Used by: emailService.js, notify-signup.js
+
+#### 3. Database Indexes (scripts/database_scheme.sql)
+```sql
+CREATE INDEX IF NOT EXISTS idx_websitevisitors_email ON public.websitevisitors(email);
+CREATE INDEX IF NOT EXISTS idx_websitevisitors_slug ON public.websitevisitors(slug);
+CREATE INDEX IF NOT EXISTS idx_websitevisitors_created_at ON public.websitevisitors(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_websitevisitors_website_normalized
+    ON public.websitevisitors(LOWER(REPLACE(REPLACE(REPLACE(website, 'http://', ''), 'https://', ''), 'www.', '')));
+```
+
+#### 4. Query Consolidation (notify-signup.js)
+Changed from 3 sequential queries to 1 CTE query:
+```sql
+WITH current_visitor AS (...),
+related_visitors AS (...),
+total AS (SELECT COUNT(*)::int as total_count FROM websitevisitors)
+SELECT * FROM current_visitor
+UNION ALL SELECT * FROM related_visitors
+UNION ALL SELECT NULL, NULL, ..., 'count:' || total_count FROM total;
+```
+
+#### 5. Shared Domain Utils (lib/domainUtils.js)
+Centralized domain extraction replacing 4 duplicate implementations:
+```javascript
+export function extractDomain(url) {
+    // Handles http://, https://, www., trailing paths
+}
+export function normalizeWebsite(url) {
+    // Lowercase, strip protocol/www
+}
+```
+
+#### 6. Exponential Backoff Retry (cheerio-scraper.js)
+```javascript
+async function fetchWithRetry(url, config, maxRetries = 3) {
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try { return await axios.get(url, config); }
+        catch (err) {
+            if (err.response?.status >= 400 && err.response?.status < 500) throw err;
+            const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+            await new Promise(r => setTimeout(r, delay));
+        }
+    }
+    throw lastError;
+}
+```
+
+#### 7. Reduced Vision API Tokens (analyze-thumbnail.js)
+Changed max_tokens from 300 to 200 (typical response is ~100 tokens)
+
+#### 8. Response Caching Headers
+- dbCheckDomain.js: `Cache-Control: public, max-age=300` (5 min)
+- dbGetVisitor.js: `Cache-Control: public, max-age=120` (2 min)
+
+#### 9. URL Validation (dbCheckDomain.js)
+Added input validation with shared isValidUrl() function
+
+## Decisions Made
+
+1. **Module-level state over Context/Redux**: For Botpress state that needs to
+   persist across page navigations, ES module state is simpler than React context
+   and works outside React components.
+
+2. **Singleton pattern for API clients**: OpenAI and Resend clients are
+   stateless - no need to create new instances per request.
+
+3. **CTE over multiple queries**: Single round-trip to DB is faster than 3,
+   especially with network latency.
+
+4. **Functional index**: The website_normalized index matches the exact LIKE
+   query pattern used in dbCheckDomain, eliminating table scans.
+
+5. **Conservative cache times**: 2-5 minutes balances freshness with performance.
+   Domain existence and visitor data don't change frequently.
+
+## Files Changed
+
+| File | Action | Lines |
+|------|--------|-------|
+| lib/botpress-webchat.js | CREATE | +576 |
+| lib/openaiClient.js | CREATE | +31 |
+| lib/resendClient.js | CREATE | +31 |
+| lib/domainUtils.js | CREATE | +56 |
+| components/Valhallah.js | MODIFY | -493 (662->169) |
+| pages/index.js | MODIFY | -153 (709->556) |
+| pages/[slug].js | MODIFY | -219 (506->287) |
+| pages/api/notify-signup.js | MODIFY | refactored |
+| lib/emailService.js | MODIFY | uses singleton |
+| lib/scrapers/cheerio-scraper.js | MODIFY | +retry logic |
+| lib/scrapers/openai-extractor.js | MODIFY | uses singleton |
+| lib/scrapers/scraper-orchestrator.js | MODIFY | uses domainUtils |
+| pages/api/analyze-thumbnail.js | MODIFY | uses singleton |
+| pages/api/dbCheckDomain.js | MODIFY | +cache, +validation |
+| pages/api/dbGetVisitor.js | MODIFY | +cache |
+| scripts/database_scheme.sql | MODIFY | +indexes |
+
+## Commits Made
+- 461db18: Deduplicate Botpress init into shared module, eliminate window globals
+- 4bb0b6b: Performance optimizations: singletons, DB indexes, query consolidation
+
+## Rollback Reference
+If issues arise, rollback commit is: 38eb9fe (Surgical architecture improvements)
+```bash
+git revert 4bb0b6b 461db18
+# OR
+git reset --hard 38eb9fe
+```
+
+## Next Steps (Deferred)
+- Component decomposition (Valhallah -> multiple focused components)
+- Additional DB query optimizations
+- Consider connection pooling tuning
+- Monitor production performance metrics
+
+## Server Deployment
+```bash
+ssh -i ~/.ssh/id_wiki root@mb.membies.com
+cd /root/magicker-page
+git pull
+npm run build
+pm2 restart magic-page
+
+# Apply new DB indexes
+psql -U postgres -d mp -p 5433 -f scripts/database_scheme.sql
+```
+
+================================================================================
+END OF LOG
+================================================================================
