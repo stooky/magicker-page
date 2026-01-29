@@ -18,16 +18,11 @@ const MainContainer = () => {
     const [callbackReceived, setCallbackReceived] = useState(true);
     const [scrapeResponse, setScrapeResponse] = useState(null);
     const [screenshotUrl, setScreenshotUrl] = useState(null);
-    const [iframeUrl, setIframeUrl] = useState('');
-    const [showIframe, setShowIframe] = useState(false);
     const [formVisible, setFormVisible] = useState(true);
     const [enteredWebsite, setEnteredWebsite] = useState('');
-    const [messages, setMessages] = useState([]); // Hold parsed messages from scraper
-    const [currentMessageIndex, setCurrentMessageIndex] = useState(0); // Keep track of where we are in the message index
     const [isLoading, setIsLoading] = useState(false);
-    const [isScanning, setIsScanning] = useState(false);  // New state for scanning
+    const [isScanning, setIsScanning] = useState(false);
     const [messageItems, setMessageItems] = useState(null);
-    const [aiListingUrl, setaiListingUrl] = useState('EMPTY');
     const [authToken, setAuthToken] = useState(null);
     const [domain, setDomain] = useState(null);
     const [isReturning, setIsReturning] = useState(false);
@@ -109,17 +104,6 @@ useEffect(() => {
             removeHideCSS({ fade: true });
         }
     }, [screenState]);
-
-    // Loop through our messages.
-    useEffect(() => {
-        if (messages.length > 0) {
-            const interval = setInterval(() => {
-                setCurrentMessageIndex(prevIndex => (prevIndex + 1) % messages.length);
-            }, 5000); // Change message every 5 seconds
-    
-            return () => clearInterval(interval);
-        }
-    }, [messages]);
 
     // Using direct response from /api/scrape-website (no polling needed)
 
@@ -520,21 +504,6 @@ useEffect(() => {
             setScrapeResponse({ status: 'error', message: `Failed to process request: ${error.message}` });
         }
     };
-
-    const formatResponse = (response) => {
-        if (response && response.message) {
-            return response.message.replace(/\n/g, '<br />');
-        }
-        return '';
-    };
-
-    const formatErrorResponse = (response) => {
-        if (response && response.rawBody) {
-            return `<strong>Error:</strong> ${response.message}<br/><br/><strong>Raw Body:</strong><br/>${response.rawBody.replace(/\n/g, '<br />')}`;
-        }
-        return `<strong>Error:</strong> ${response.message}`;
-    };
-
 
     return (
         <ThemeProvider>
