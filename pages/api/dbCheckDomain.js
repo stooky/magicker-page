@@ -34,7 +34,7 @@ export default async function handler(req, res) {
                 ORDER BY created_at DESC
                 LIMIT 1;
             ` : `
-                SELECT sessionid, email, website, companyname, mylistingurl, slug,
+                SELECT sessionid, email, website, companyname, mylistingurl, slug, bot_theme, kb_file_id,
                     CASE
                         WHEN screenshoturl IS NULL THEN NULL
                         ELSE convert_from(screenshoturl::bytea, 'UTF8')

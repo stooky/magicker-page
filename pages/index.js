@@ -263,6 +263,25 @@ useEffect(() => {
                     setIsLoading(false);
                     setIsScanning(false);
 
+                    // Use stored bot theme if available, otherwise use default
+                    if (existingData.bot_theme) {
+                        const storedTheme = typeof existingData.bot_theme === 'string'
+                            ? JSON.parse(existingData.bot_theme)
+                            : existingData.bot_theme;
+                        console.log('Using stored bot theme:', storedTheme.name);
+                        setBotTheme(storedTheme);
+                        webchatState.theme = storedTheme;
+                    } else {
+                        console.log('No stored theme, using default Marv theme');
+                        webchatState.theme = CONFIG.defaultBotTheme;
+                    }
+
+                    // Use stored kbFileId if available
+                    if (existingData.kb_file_id) {
+                        setKbFileId(existingData.kb_file_id);
+                        console.log('Using stored KB file ID:', existingData.kb_file_id);
+                    }
+
                     // Subscribe this email to the domain (they'll get the shareable link email)
                     // Fire-and-forget - don't block the user experience
                     if (email && existingData.slug) {
@@ -358,9 +377,9 @@ useEffect(() => {
             const slug = domainToSlug(websiteDomain);
             console.log('Generated slug:', slug, 'for domain:', websiteDomain);
 
-            // Insert the visitor data into the database
+            // Insert the visitor data into the database (including bot theme)
             try {
-                console.log('Inserting visitor:', sessionID, email, website, companyName, 'slug:', slug);
+                console.log('Inserting visitor:', sessionID, email, website, companyName, 'slug:', slug, 'hasTheme:', !!webchatState.theme);
                 await axios.post('/api/dbInsertVisitor', {
                     sessionID: sessionID,
                     email: email,
@@ -369,6 +388,7 @@ useEffect(() => {
                     myListingUrl: "EMPTY",
                     screenshotUrl: screenshotData.screenshotPath || `/screenshots/${sessionID}.png`,
                     slug: slug,
+                    botTheme: webchatState.theme || null,  // Save theme with initial insert
                 });
                 console.log('Visitor inserted successfully:', sessionID, 'with slug:', slug);
             } catch (error) {
