@@ -45,16 +45,26 @@ logs/
 /components/*Simple.js
 test-*.html
 
-# archives and exports
+# archives, exports, and backups
 *.zip
+*.bak
+*.pdf
 /db_dump/
 /botpress-export/
 /botpress-export-analysis/
-Memby - */
-*.pdf
+Memby*/
 
-# runtime generated data (kb files from scraping)
+# runtime generated data
 /data/kb-files/
+/public/screenshots/
+
+# IDE and editor files
+.idea/
+*.swp
+*.swo
+
+# OS files
+Thumbs.db
 
 # claude settings (local only)
 .claude/settings.local.json
